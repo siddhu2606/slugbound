@@ -9,6 +9,8 @@ cd "$(dirname "$0")"
 mkdir -p build
 CXX=${CXX:-g++}
 FLAGS="-std=c++17 -O1 -Wall -Wextra"
+# On Windows (MSYS2 / MinGW) link statically: it avoids mixed-DLL crashes when several MinGW installs are on the PATH.
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) FLAGS="$FLAGS -static";; esac
 case "${1:-test}" in
   test)
     $CXX $FLAGS ${SAN_CHECK:+-fsanitize=address,undefined} -o build/tests tests/test_engine.cpp engine/*.cpp
@@ -19,7 +21,7 @@ case "${1:-test}" in
     ./build/console
     ;;
   play)
-    EXTRA=""; case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) EXTRA="-static -lws2_32 -lpthread";; *) EXTRA="-pthread";; esac
+    EXTRA=""; case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) EXTRA="-lws2_32 -lpthread";; *) EXTRA="-pthread";; esac
     $CXX $FLAGS -o build/server server/main_server.cpp engine/*.cpp $EXTRA
     echo "Open http://localhost:8080/index.html?server"
     ./build/server 8080 web
