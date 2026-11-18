@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: C++ engine tests (with AddressSanitizer and UBSan)
-        run: SAN_CHECK=1 ./build.sh test
+        run: SAN_CHECK=1 bash build.sh test
       - name: Play the whole game through the API (native server + bot)
         run: |
           g++ -std=c++17 -O1 -pthread -o build/server server/main_server.cpp engine/*.cpp
@@ -38,7 +38,7 @@ jobs:
         with:
           version: 3.1.64
       - name: Compile the C++ engine to WebAssembly
-        run: ./build.sh wasm
+        run: bash build.sh wasm
       - name: Stamp scripts and styles so browsers never show an old version
         run: sed -i -E "s#(css/style\.css|js/[a-z0-9]+\.js|engine/engine\.js)\"#\1?v=${GITHUB_SHA::7}\"#g" web/index.html
       - name: Keep only what the game needs
