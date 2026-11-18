@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slugbound</title>
+<meta name="description" content="Slugbound: a 2.5D HD-2D exploration-and-duel game. A C++ engine runs every rule; Babylon.js makes it beautiful.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='38' r='22' fill='%23ff7a2a'/%3E%3Ccircle cx='24' cy='34' r='6' fill='white'/%3E%3Ccircle cx='40' cy='34' r='6' fill='white'/%3E%3Ccircle cx='25' cy='35' r='3' fill='%23160d26'/%3E%3Ccircle cx='41' cy='35' r='3' fill='%23160d26'/%3E%3Cpath d='M22 14q4 10 10 4q6 6 10-4q-2 14-10 14t-10-14z' fill='%23ffd23f'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<!-- Code Lens: floating class tags over every object -->
+<div id="lensTags"></div>
+
+<!-- explore HUD -->
+<div id="hud" class="hidden">
+  <div id="zoneBanner"></div>
+  <div id="objective"><span class="obj-label">OBJECTIVE</span><span id="objText"></span><span id="objCount"></span></div>
+  <div id="statsPanel" class="panel">
+    <div class="stat-row"><span class="stat-ico">❤</span><div class="bar hp"><i id="hudHp"></i></div><b id="hudHpTxt"></b></div>
+    <div class="stat-row small"><span class="chip">🔫 <b id="hudAmmo"></b></span><span class="chip">🌿 <b id="hudMoss"></b></span><span class="chip">🗝 <b id="hudKeys"></b>/3</span></div>
+  </div>
+  <div id="queueBar" class="panel"><div class="q-label">BLASTER <small>queue&lt;Slug*&gt;</small></div><div id="queueSlots"></div></div>
+  <div id="keyHints">
+    <span><kbd>WASD</kbd> move</span><span><kbd>E</kbd> interact</span><span><kbd>B</kbd> blaster</span><span><kbd>P</kbd> slugpedia</span><span><kbd>Tab</kbd> code lens</span><span><kbd>Esc</kbd> menu</span><span><kbd>M</kbd> sound</span>
+  </div>
+</div>
+
+<!-- Code Lens console -->
+<div id="console" class="panel hidden">
+  <div class="console-head"><b>CODE LENS</b> <span>live console from the C++ engine</span><button id="consoleClose" class="x">×</button></div>
+  <div id="consoleBody"></div>
+  <div class="console-foot"><span class="tag ctor">ctor</span><span class="tag dtor">dtor</span><span class="tag call">call</span><span class="tag throw">throw</span><span class="tag catch">catch</span></div>
+</div>
+
+<!-- dialog -->
+<div id="dialog" class="hidden">
+  <div class="dlg-portrait"><img id="dlgImg" alt=""></div>
+  <div class="dlg-box">
+    <div class="dlg-name" id="dlgName"></div>
+    <div class="dlg-text" id="dlgText"></div>
+    <div class="dlg-next">▼ <kbd>E</kbd></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<!-- battle UI -->
+<div id="battleUI" class="hidden">
+  <div id="enemyPlate" class="plate enemy">
+    <div class="plate-top"><span id="enName"></span><span class="lv" id="enLv"></span><span class="elem" id="enElem"></span></div>
+    <div class="bar-wrap"><span class="hp-tag">HP</span><div class="bar big hp"><i id="enHp"></i></div></div>
+    <div class="status" id="enStatus"></div>
+    <div id="bossInfo" class="boss-info hidden"></div>
+  </div>
+  <div id="queuePanel" class="panel">
+    <div class="q-label">FIRE ORDER</div>
+    <div id="battleQueue"></div>
+    <div class="q-foot">front fires, then re-queues at the back</div>
+  </div>
+  <div id="playerPlate" class="plate player">
+    <div class="plate-top"><span id="plName"></span><span class="lv" id="plLv"></span><span class="elem" id="plElem"></span></div>
+    <div class="bar-wrap"><span class="hp-tag">HP</span><div class="bar big hp"><i id="plHp"></i></div><b id="plHpTxt"></b></div>
+    <div class="bar xp"><i id="plXp"></i></div>
+    <div class="slinger-row"><span>🧑 <b id="slHp"></b></span><span>🔫 <b id="slAmmo"></b></span><span>🌿 <b id="slMoss"></b></span><span id="slShield" class="shield hidden">🛡 <b></b></span><span id="slGuard" class="guard hidden">GUARD</span></div>
+  </div>
+  <div id="msgBox"><div id="msgText"></div></div>
+  <div id="turnBanner"></div>
+  <div id="commands">
+    <button class="cmd fire" data-cmd="fire"><kbd>1</kbd><span>FIRE</span><small>Slug* → attack()</small></button>
+    <button class="cmd swap" data-cmd="swap"><kbd>2</kbd><span>SWAP</span><small>queue rotates</small></button>
+    <button class="cmd guard" data-cmd="guard"><kbd>3</kbd><span>GUARD</span><small>halve next hit</small></button>
+    <button class="cmd moss" data-cmd="moss"><kbd>4</kbd><span>MOSS</span><small>heal front slug</small></button>
+    <button class="cmd run" data-cmd="run"><kbd>5</kbd><span>RUN</span><small>wild only</small></button>
+  </div>
+  <div id="floaters"></div>
+  <div id="effBanner"></div>
+</div>
+
+<!-- screens -->
+<div id="screen" class="hidden"></div>
+<div id="cardLayer" class="hidden"></div>
+
+<!-- title -->
+<div id="title">
+  <div class="title-inner">
+    <div class="title-sub">A C++ engine · a Babylon.js world</div>
+    <h1 class="logo">SLUG<span>BOUND</span></h1>
+    <div class="tagline">Explore the dark. Load your slugs. Take back the light.</div>
+    <div class="title-menu" id="titleMenu">
+      <button class="tbtn" id="btnNew">New Game</button>
+      <button class="tbtn" id="btnContinue">Continue</button>
+      <button class="tbtn ghost" id="btnHow">How to play</button>
+    </div>
+    <div class="title-foot" id="titleFoot">Loading the C++ engine…</div>
+  </div>
+</div>
+
+<div id="fade"></div>
+<div id="loading"><div class="spinner"></div><div id="loadText">Waking the engine…</div></div>
+
+<script src="engine/engine.js" onerror="window.__noWasm=true"></script>
+<script src="vendor/babylon.js"></script>
+<script src="js/api.js"></script>
+<script src="js/art.js"></script>
+<script src="js/art2.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/slugs3d.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/battle.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
