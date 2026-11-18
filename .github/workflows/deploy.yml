@@ -25,9 +25,9 @@ jobs:
       - name: Play the whole game through the API (native server + bot)
         run: |
           g++ -std=c++17 -O1 -pthread -o build/server server/main_server.cpp engine/*.cpp
-          (./build/server 8080 web > build/server.log 2>&1 &)
+          (SLUG_SEED=7 ./build/server 8080 web > build/server.log 2>&1 &)
           sleep 2
-          node tools/bot.js 8080
+          SLUG_SEED=7 node tools/bot.js 8080
 
   build:
     needs: test

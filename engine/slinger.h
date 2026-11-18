@@ -34,6 +34,7 @@ public:
     void healEverything();
     bool hasFlag(const string& f) const { return flags.count(f) > 0; }
     void setFlag(const string& f) { flags.insert(f); }
+    void clearFlag(const string& f) { flags.erase(f); }
 
     int attack(Combatant& target) override;   // blaster bash (not used by the duel)
     OOPCard describeOOP() const override;

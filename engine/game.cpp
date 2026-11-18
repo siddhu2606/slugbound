@@ -41,7 +41,8 @@ static OOPCard destructorCard() {
 
 GameEngine::GameEngine(const string& saveFile)
     : player(0), world(0), battle(0), victory(false), savePath(saveFile), debugRoutes(false) {
-    srand((unsigned)time(0));
+    const char* seed = getenv("SLUG_SEED");            // fixed seed = repeatable run (used by the CI bot)
+    srand(seed ? (unsigned)atoi(seed) : (unsigned)time(0));
     freshGame();
 }
 
@@ -468,6 +469,7 @@ string GameEngine::handle(const string& fullRoute, const string& body) {
             for (int i = 1; i <= reqInt(body, "cards", 0); i++) player->cardsShown.insert(i);
             if (reqInt(body, "starter", 0)) { player->setFlag("starter"); if (player->allSlugs().empty()) player->addSlug(new FireSlug(2)); }
             if (reqInt(body, "seen", 0)) player->setFlag("seen_wild");
+            if (reqInt(body, "unseen", 0)) player->clearFlag("seen_wild");
             return finish(o);
         }
         if (route == "/move") return doMove(body);

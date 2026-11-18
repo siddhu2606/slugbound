@@ -13,6 +13,8 @@ const say = (...a) => console.log(...a);
 const elWheelBeats = { Fire: 'Ice', Ice: 'Air', Air: 'Earth', Earth: 'Energy', Energy: 'Fire' };
 const D = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const key = (x, y) => x + ',' + y;
+let seedState = Number(process.env.SLUG_SEED || 1);
+const rnd = () => { seedState = (seedState * 1664525 + 1013904223) % 4294967296; return seedState / 4294967296; };
 
 async function loadZone() { Z = (await call('/zone')).zone; }
 const objs = () => Z.objects;
@@ -115,6 +117,11 @@ async function interactWith(id, allowLocked) {
   await goTo(best.ax, best.ay);
   let r = await call('/move', { dir: best.d });
   if (r.battle) { await fight(r); return r; }
+  if (!r.ok && r.locked && !allowLocked) {
+    // the slug that should open this gate fainted on the way: heal, load it again and retry once
+    const m = /Need an? (\w+) slug/.exec(r.msg);
+    if (m) { say('  (gate slug fainted, healing and retrying)'); await healSpring(); await load(m[1]); await goTo(best.ax, best.ay); r = await call('/move', { dir: best.d }); }
+  }
   if (!r.ok) { if (allowLocked && r.locked) { say('  locked (expected):', r.msg); return r; } throw new Error('move failed: ' + JSON.stringify(r.error)); }
   if (r.event && r.event.type === 'gate_open') { say('  gate:', r.event.text); await loadZone(); return r; }
   r = await call('/interact');
@@ -144,7 +151,7 @@ async function grind(untilFn, label) {
   while (!untilFn() && n++ < 300) {
     const moss = [];
     for (let y = 0; y < Z.h; y++) for (let x = 0; x < Z.w; x++) if (Z.rows[y][x] === 'm' && !objs().some((o) => o.x === x && o.y === y && o.kind !== 'patch')) moss.push([x, y]);
-    const m = moss[Math.floor(Math.random() * moss.length)];
+    const m = moss[Math.floor(rnd() * moss.length)];
     await goTo(m[0], m[1]);
     if (S.blaster.some((s) => s.hp < s.maxHp * 0.4) && S.player.moss > 0) await call('/moss');
     if (n % 5 === 0) await healSpring();
