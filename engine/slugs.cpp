@@ -249,7 +249,7 @@ int EnergySlug::attack(Enemy& e) {
     return lastHit.damage;
 }
 void EnergySlug::special(Enemy& e) {
-    if (e.isAlive() && rand() % 100 < 30) { e.setStunned(true); lastHit.effect = "stun"; }
+    if (e.isAlive() && gameRand() % 100 < 30) { e.setStunned(true); lastHit.effect = "stun"; }
 }
 Slug* EnergySlug::clone() const {
     Logger::log("clone", "EnergySlug::clone() called through a Slug*");

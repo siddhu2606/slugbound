@@ -1,5 +1,12 @@
 #include "common.h"
 
+static unsigned rngState = 12345u;
+void gameSeed(unsigned seed) { rngState = seed ? seed : 1u; }
+int gameRand() {
+    rngState = rngState * 1664525u + 1013904223u;
+    return (int)((rngState >> 16) & 0x7FFF);
+}
+
 string elementName(Element e) {
     static const char* names[] = {"Fire", "Ice", "Air", "Earth", "Energy", "Ghoul"};
     return names[e];

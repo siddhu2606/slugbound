@@ -1,11 +1,13 @@
 // Plays Slugbound start to finish through the HTTP API. Used to check the C++ engine, the maps and the balance.
 // usage: node tools/bot.js [port]
 const PORT = process.argv[2] || 8080;
+const T0 = Date.now();
+setTimeout(() => { console.error('BOT TIMEOUT after 120 s at step', global.__where || '?', JSON.stringify(global.__S && global.__S.player)); process.exit(2); }, 120000).unref();
 const BASE = `http://localhost:${PORT}/api`;
 let S = null, Z = null, logAll = [], stats = { battles: 0, losses: 0, steps: 0 };
 const call = async (route, body) => {
   const r = await (await fetch(BASE + route, { method: 'POST', body: JSON.stringify(body || {}) })).json();
-  if (r.state) S = r.state;
+  if (r.state) { S = r.state; global.__S = S; }
   if (r.log) logAll.push(...r.log);
   return r;
 };
@@ -102,6 +104,7 @@ async function goTo(x, y) {
 }
 
 async function interactWith(id, allowLocked) {
+  global.__where = 'interactWith ' + id;
   const o = objs().find((o) => o.id === id);
   if (!o) throw new Error('no object ' + id);
   let best = null;

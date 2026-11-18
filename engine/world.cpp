@@ -169,8 +169,8 @@ WildPatch::WildPatch(const string& ident, const vector<Element>& t, int lo, int 
     : Interactable(ident, Position(0, 0), "Wild patch"), table(t), minLevel(lo), maxLevel(hi), rate(ratePercent) {}
 
 Outcome WildPatch::interact(Slinger&) {
-    Element e = table[rand() % table.size()];
-    int lvl = minLevel + rand() % (maxLevel - minLevel + 1);
+    Element e = table[gameRand() % table.size()];
+    int lvl = minLevel + gameRand() % (maxLevel - minLevel + 1);
     return forced(e, lvl);
 }
 

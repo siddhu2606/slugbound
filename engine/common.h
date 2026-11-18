@@ -23,6 +23,11 @@ enum Element { FIRE = 0, ICE, AIR, EARTH, ENERGY, GHOUL };
 string elementName(Element e);
 Element beats(Element e);          // the element this one is super effective against
 
+// ---------- Random numbers ----------
+// Our own tiny generator, so a fixed seed gives the same game on every computer (used by the CI bot).
+void gameSeed(unsigned seed);
+int gameRand();                                   // 0 .. 32767
+
 // ---------- Positions and directions ----------
 enum Direction { UP, DOWN, LEFT, RIGHT };
 

@@ -42,7 +42,7 @@ static OOPCard destructorCard() {
 GameEngine::GameEngine(const string& saveFile)
     : player(0), world(0), battle(0), victory(false), savePath(saveFile), debugRoutes(false) {
     const char* seed = getenv("SLUG_SEED");            // fixed seed = repeatable run (used by the CI bot)
-    srand(seed ? (unsigned)atoi(seed) : (unsigned)time(0));
+    gameSeed(seed ? (unsigned)atoi(seed) : (unsigned)time(0));
     freshGame();
 }
 
@@ -229,7 +229,7 @@ string GameEngine::doMove(const string& body) {
         if (!haveOut && wp && player->blaster.size() > 0 && z->tile(t.x, t.y) == 'm') {
             bool first = player->hasFlag("starter") && !player->hasFlag("seen_wild") && player->zoneId == "grotto";
             if (first) { out = wp->forced(ICE, 1); haveOut = true; }
-            else if (rand() % 100 < wp->getRate()) { out = wp->interact(*player); haveOut = true; }
+            else if (gameRand() % 100 < wp->getRate()) { out = wp->interact(*player); haveOut = true; }
         }
     }
     JsonObj o;

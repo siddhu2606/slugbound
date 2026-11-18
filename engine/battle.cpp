@@ -112,7 +112,7 @@ string Battle::run() {
     if (enemy->getKind() != "wild") throw InvalidMoveException("You cannot run from this duel!");
     JsonObj a;
     a.add("type", "run");
-    if (rand() % 100 < 70) {
+    if (gameRand() % 100 < 70) {
         over = true;
         result = "run";
         player.clearGuard();
