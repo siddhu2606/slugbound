@@ -127,6 +127,8 @@ async function interactWith(id, allowLocked) {
 
 const slugs = () => [...S.blaster, ...S.storage];
 async function load(...els) {
+  // a fainted gate slug cannot open anything: heal at the nearest heart shard first
+  if (els.some((e) => ['Earth', 'Ice', 'Air', 'Energy'].includes(e) && !slugs().some((x) => x.element === e && x.hp > 0))) await healSpring();
   const all = slugs().filter((s) => s.hp > 0).sort((a, b) => b.level - a.level);
   const pick = [];
   for (const e of els) { const s = all.find((s) => s.element === e && !pick.includes(s)); if (s) pick.push(s); }
