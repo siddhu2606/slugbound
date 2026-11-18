@@ -16,7 +16,7 @@ const Battle = (() => {
   let camPos = CAM.pos.clone(), camLook = CAM.look.clone(), camT = 0, camDesired = null, battleLight = null, fxLight = null, redPulse = 0;
   let cur = null;            // latest battle state from the engine
   let busy = false, typing = null, prevSun = null;
-  let camSwing = 0;
+  let camSwing = 0, fogBefore = 0.03;
 
   // =========================================================
   //  arena
@@ -424,6 +424,7 @@ const Battle = (() => {
     const fade = $('fade'); fade.classList.add('on'); await wait(450);
     // build the arena far away and switch the camera over
     World3D.setCamMode('free');
+    fogBefore = World3D.scene.fogDensity; World3D.scene.fogDensity = fogBefore * 0.45;
     prevSun = { auto: World3D.sun.autoUpdateExtends, z: World3D.sun.autoCalcShadowZBounds };
     buildArena(zid);
     const sun = World3D.sun;
@@ -570,6 +571,7 @@ const Battle = (() => {
     const sun = World3D.sun; if (prevSun) { sun.autoUpdateExtends = prevSun.auto; sun.autoCalcShadowZBounds = prevSun.z; }
     $('battleUI').classList.add('hidden'); $('floaters').innerHTML = '';
     World3D.setCamMode('follow');
+    World3D.scene.fogDensity = fogBefore;
     clearInterval(typing);
   }
 

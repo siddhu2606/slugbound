@@ -431,10 +431,13 @@ const World3D = {};
       const m = gLava.build('lava', lm, false); m.parent = rootNode; terrainNodes.push(m);
       animTex.push({ t: lavaTex, du: 0.012, dv: 0.006 });
       // heat shimmer light
-      const pl = new B.PointLight('lavaLight', new B.Vector3(0, 1.2, 0), scene);
-      const first = zone.rows.map((row, yy) => [row.indexOf('~'), yy]).find((a) => a[0] >= 0);
-      pl.position = new B.Vector3(first[0], 1.2, -first[1] - 3);
-      pl.diffuse = hex('#ff7a2a'); pl.intensity = 1.6; pl.range = 10; pl.parent = rootNode;
+      if (!rootNode._lavaLight) {
+        const pl = new B.PointLight('lavaLight', new B.Vector3(0, 1.2, 0), scene);
+        const first = zone.rows.map((row, yy) => [row.indexOf('~'), yy]).find((a) => a[0] >= 0);
+        pl.position = new B.Vector3(first[0], 1.2, -first[1] - 3);
+        pl.diffuse = hex('#ff7a2a'); pl.intensity = 1.6; pl.range = 10; pl.parent = rootNode;
+        rootNode._lavaLight = pl;
+      }
     }
     if (gWater.pos.length) {
       waterTex = texFromCanvas(Art.waterTexture(id === 'hollows'), 'water' + id, { wrap: true });
