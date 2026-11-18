@@ -35,9 +35,9 @@ const World3D = {};
   //  presets per zone
   // =========================================================
   const PRESETS = {
-    grotto:  { clear: '#06161a', fog: '#0a2a2c', density: 0.030, hemiSky: '#8fe8e0', hemiGround: '#14303a', hemiI: 0.95, sun: '#ffe6bc', sunI: 1.15, lantern: '#ffe0a8', glow: 0.5, mote: '#a8ffe0', motes: 70, accent: '#5affbe', deco: ['bulb', 'tuft', 'mushroom'], prop: 'mushroom', lights: 3, exposure: 1.18 },
-    hollows: { clear: '#050c20', fog: '#0a1840', density: 0.030, hemiSky: '#9cc8ff', hemiGround: '#18284a', hemiI: 1.0, sun: '#cfe6ff', sunI: 1.1, lantern: '#cfe8ff', glow: 0.55, mote: '#d8f0ff', motes: 90, accent: '#7ae0ff', deco: ['fern', 'tuft'], prop: 'crystal', lights: 3, exposure: 1.2 },
-    vein:    { clear: '#140503', fog: '#2e0c06', density: 0.030, hemiSky: '#ff9a6a', hemiGround: '#3a1208', hemiI: 0.9, sun: '#ffb070', sunI: 1.1, lantern: '#ffc890', glow: 0.6, mote: '#ff9a3c', motes: 80, accent: '#ff8a3a', deco: ['ember', 'tuft'], prop: 'spire', lights: 3, exposure: 1.18 },
+    grotto:  { clear: '#06161a', fog: '#0a2a2c', density: 0.030, hemiSky: '#8fe8e0', hemiGround: '#14303a', hemiI: 0.8, sun: '#ffe6bc', sunI: 0.95, lantern: '#ffe0a8', glow: 0.5, mote: '#a8ffe0', motes: 70, accent: '#5affbe', deco: ['bulb', 'tuft', 'mushroom'], prop: 'mushroom', lights: 3, exposure: 1.0 },
+    hollows: { clear: '#050c20', fog: '#0a1840', density: 0.030, hemiSky: '#9cc8ff', hemiGround: '#18284a', hemiI: 1.0, sun: '#cfe6ff', sunI: 1.1, lantern: '#cfe8ff', glow: 0.55, mote: '#d8f0ff', motes: 90, accent: '#7ae0ff', deco: ['fern', 'tuft'], prop: 'crystal', lights: 3, exposure: 1.0 },
+    vein:    { clear: '#140503', fog: '#2e0c06', density: 0.030, hemiSky: '#ff9a6a', hemiGround: '#3a1208', hemiI: 0.9, sun: '#ffb070', sunI: 1.1, lantern: '#ffc890', glow: 0.6, mote: '#ff9a3c', motes: 80, accent: '#ff8a3a', deco: ['ember', 'tuft'], prop: 'spire', lights: 3, exposure: 1.05 },
     keep:    { clear: '#0e030a', fog: '#1e0612', density: 0.034, hemiSky: '#d08aa8', hemiGround: '#220a18', hemiI: 0.8, sun: '#ff8a9a', sunI: 0.95, lantern: '#ffb0b0', glow: 0.55, mote: '#ff5a6a', motes: 60, accent: '#ff4a6a', deco: ['thorn'], prop: 'pillar', lights: 3, exposure: 1.12 },
   };
 
@@ -527,6 +527,14 @@ const World3D = {};
   // =========================================================
   //  big props on 'T' tiles
   // =========================================================
+  function capMat(name, c1, c2) {
+    if (matCache[name]) return matCache[name];
+    const m = new B.StandardMaterial(name, scene);
+    m.diffuseTexture = texFromCanvas(Art2.cap(c1, c2), 'cap' + name);
+    m.emissiveColor = hex(c2).scale(0.22); m.specularColor = new B.Color3(0.25, 0.25, 0.25); m.specularPower = 24; m.maxSimultaneousLights = 6;
+    matCache[name] = m;
+    return m;
+  }
   function buildProps() {
     const kind = PRESETS[zone.id].prop;
     const r = Art.rng(31 + zone.id.length);
@@ -535,12 +543,12 @@ const World3D = {};
       white: std('crystalWhite', '#e9fbff', { emissive: '#5a8ab0', alpha: 0.95, spec: '#ffffff' }),
       violet: std('crystalViolet', '#b890ff', { emissive: '#4a3090', alpha: 0.95, spec: '#ffffff' }),
       stem: std('stemMat', '#d8d0bc', { emissive: '#2a2820' }),
-      capA: std('capA', '#5ac8e0', { emissive: '#146a80' }),
-      capB: std('capB', '#e870c0', { emissive: '#7a2468' }),
-      capC: std('capC', '#e8c050', { emissive: '#7a5412' }),
+      capA: capMat('capA', '#8af0ff', '#2a98b8'),
+      capB: capMat('capB', '#ffa0e0', '#b0409a'),
+      capC: capMat('capC', '#ffe08a', '#c8841a'),
       obs: std('obsidian', '#2a2236', { emissive: '#1a1020', spec: '#8a70c0' }),
       ember: std('emberMat', '#ff7a2a', { emissive: '#ff6a1a', noLight: true }),
-      stone: std('pillarStone', '#6a6088', { emissive: '#1a1630' }),
+      stone: std('pillarStone', '#4a4262', { emissive: '#120e22' }),
       rune: std('pillarRune', '#ff4a6a', { emissive: '#ff3a5a', noLight: true }),
     };
     const tiles = [];
@@ -758,18 +766,19 @@ const World3D = {};
       entry.update = (d) => { gem.setEnabled(!d.done); pool.visibility = d.done ? 0.15 : 1; };
       entry.update(o);
     } else if (kind === 'wall') {
-      const rock = std('wallRock' + zone.id, '#ffffff', {});
+      const rock = std('wallRock' + zone.id, '#e8d6bc', { emissive: '#2a1a0c' });
       if (!rock.diffuseTexture) rock.diffuseTexture = texFromCanvas(Art.rockTexture(zone.id), 'rock' + zone.id, { wrap: true });
       const wallGroup = new B.TransformNode('wallG', scene); wallGroup.parent = root;
-      for (let i = 0; i < 4; i++) {
-        const b = B.MeshBuilder.CreateBox('wb', { width: 0.62, height: 0.7, depth: 0.7 }, scene);
-        b.parent = wallGroup; b.position.set((i % 2 - 0.5) * 0.5, 0.35 + Math.floor(i / 2) * 0.65, (r2(i) - 0.5) * 0.2); b.rotation.set((r2(i + 4) - 0.5) * 0.25, (r2(i + 9) - 0.5) * 0.5, (r2(i + 3) - 0.5) * 0.2);
+      for (let i = 0; i < 6; i++) {
+        const b = B.MeshBuilder.CreateBox('wb', { width: 0.7, height: 0.78, depth: 0.82 }, scene);
+        b.parent = wallGroup; b.position.set((i % 2 - 0.5) * 0.52, 0.39 + Math.floor(i / 2) * 0.7, (r2(i) - 0.5) * 0.16); b.rotation.set((r2(i + 4) - 0.5) * 0.18, (r2(i + 9) - 0.5) * 0.4, (r2(i + 3) - 0.5) * 0.14);
         b.material = rock; b.metadata = { caster: true }; b.isPickable = false;
       }
-      const cp = B.MeshBuilder.CreatePlane('cracks', { width: 1.1, height: 1.5 }, scene); cp.parent = wallGroup; cp.position.set(0, 0.7, -0.42); cp.isPickable = false;
+      const cp = B.MeshBuilder.CreatePlane('cracks', { width: 1.25, height: 2.0 }, scene); cp.parent = wallGroup; cp.position.set(0, 1.05, -0.45); cp.isPickable = false; cp.billboardMode = B.Mesh.BILLBOARDMODE_Y;
       const cm = std('crackM', '#000000', { noLight: true, add: true, cull: false }); cm.emissiveTexture = texFromCanvas(Art2.cracks('#ffb040'), 'cracksT', { alpha: true }); cm.opacityTexture = cm.emissiveTexture; cm.emissiveColor = new B.Color3(1, 1, 1); cp.material = cm;
       const rubble = new B.TransformNode('rubble', scene); rubble.parent = root;
       for (let i = 0; i < 7; i++) { const b = B.MeshBuilder.CreateBox('rb', { size: 0.18 + r2(i) * 0.2 }, scene); b.parent = rubble; b.position.set((r2(i + 1) - 0.5) * 0.9, 0.1, (r2(i + 2) - 0.5) * 0.7); b.rotation.set(r2(i) * 3, r2(i + 5) * 3, 0); b.material = rock; b.isPickable = false; }
+      lightPool(o.x, -o.y, '#ffb040', 2.6, 0.3);
       entry.update = (d) => { wallGroup.setEnabled(!d.done); rubble.setEnabled(!!d.done); };
       entry.update(o);
     } else if (kind === 'gap') {

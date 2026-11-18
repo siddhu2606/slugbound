@@ -169,10 +169,18 @@ async function grind(untilFn, label) {
   await interactWith('g_gap');
   await interactWith('g_egg');
   say('  slugs:', slugs().map((s) => `${s.name} L${s.level}`).join(', '));
-  await grind(() => { const c = {}; slugs().forEach((s) => (c[s.name] = (c[s.name] || 0) + 1)); return Object.values(c).some((n) => n >= 2) && slugs().length >= 6; }, 'duplicates');
-  const byName = {}; slugs().forEach((s) => (byName[s.name] = byName[s.name] || []).push(s));
-  const dup = Object.entries(byName).filter(([n, a]) => a.length >= 2 && n === 'Boulderback').map(([n, a]) => a)[0] || Object.values(byName).find((a) => a.length >= 2);
-  const fz = await call('/fuse', { a: dup[0].id, b: dup[1].id });
+  // fuse two slugs, but never destroy the last slug of an element a gate needs (Earth, Ice, Air, Energy)
+  const safePair = () => {
+    const all = slugs();
+    for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
+      const rest = all.filter((_, k) => k !== i && k !== j);
+      if (['Earth', 'Ice', 'Air', 'Energy'].every((e) => rest.some((x) => x.element === e))) return [all[i], all[j]];
+    }
+    return null;
+  };
+  await grind(() => safePair() !== null && slugs().length >= 6, 'a safe pair to fuse');
+  const pair = safePair();
+  const fz = await call('/fuse', { a: pair[0].id, b: pair[1].id });
   say('  FUSED:', fz.ok, fz.parents);
   await interactWith('g_chest3');
   await healSpring();

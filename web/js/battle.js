@@ -10,7 +10,7 @@ const Battle = (() => {
   const PLAYER_POS = V3(C.x - 4.1, 0, C.z - 0.9);
   const SLUG_POS = V3(C.x - 1.5, 0, C.z - 2.5);
   const ENEMY_POS = V3(C.x + 2.6, 0, C.z + 1.9);
-  const CAM = { pos: V3(C.x - 6.8, 3.2, C.z - 8.0), look: V3(C.x + 0.2, 1.0, C.z + 0.2) };
+  const CAM = { pos: V3(C.x - 7.8, 4.2, C.z - 9.4), look: V3(C.x + 0.5, 0.2, C.z + 0.6) };
 
   let arena = null, frontModel = null, enemyModel = null, enemyActor = null, playerActor = null, minionActors = [];
   let camPos = CAM.pos.clone(), camLook = CAM.look.clone(), camT = 0, camDesired = null, battleLight = null, fxLight = null, redPulse = 0;
@@ -161,9 +161,9 @@ const Battle = (() => {
   const camShot = (name) => {
     const shots = {
       default: null,
-      hit: { pos: V3(C.x - 5.6, 3.0, C.z - 7.2), look: V3(C.x + 1.6, 1.1, C.z + 0.8) },
-      enemy: { pos: V3(C.x + 0.4, 2.2, C.z - 3.6), look: V3(C.x + 3.0, 1.4, C.z + 2.0) },
-      player: { pos: V3(C.x - 1.0, 2.6, C.z - 7.8), look: V3(C.x - 2.2, 1.0, C.z - 1.4) },
+      hit: { pos: V3(C.x - 6.2, 3.6, C.z - 9.0), look: V3(C.x + 1.4, 0.5, C.z + 0.8) },
+      enemy: { pos: V3(C.x - 1.6, 3.0, C.z - 6.4), look: V3(C.x + 2.4, 0.8, C.z + 1.6) },
+      player: { pos: V3(C.x - 1.4, 3.2, C.z - 8.6), look: V3(C.x - 2.4, 0.5, C.z - 1.6) },
       intro: { pos: V3(C.x + 6.0, 2.0, C.z - 2.0), look: V3(C.x + 3.0, 1.5, C.z + 2.0) },
       boss: { pos: V3(C.x + 1.4, 1.4, C.z - 1.0), look: V3(C.x + 3.0, 2.6, C.z + 2.0) },
     };
@@ -307,8 +307,8 @@ const Battle = (() => {
       }
       if (super_ && h === 0) { effBanner('SUPER EFFECTIVE!', '#ffe14a'); await World3D.tween(0.12, () => {}); }
       if (res && h === 0) effBanner('Not very effective...', '#9db3c9');
-      model.root.scaling.setAll(1.7); model.setGlow(1);
-      await World3D.tween(0.22, (k) => { model.root.scaling.setAll(1.7 - 0.7 * k); model.setGlow(1 - k * 0.7); });
+      model.root.scaling.setAll(1.45); model.setGlow(1);
+      await World3D.tween(0.22, (k) => { model.root.scaling.setAll(1.45 - 0.45 * k); model.setGlow(1 - k * 0.7); });
       if (nHits > 1 && h < nHits - 1) await wait(60);
     }
     trail.stop(); setTimeout(() => trail.dispose(), 700);

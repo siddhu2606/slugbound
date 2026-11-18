@@ -115,5 +115,18 @@ const Art2 = (() => {
     return c;
   }
 
-  return { deco, shaft, swirl, cracks, mist, runes };
+  function cap(c1, c2) {
+    const key = 'cap' + c1 + c2;
+    if (cache[key]) return cache[key];
+    const [c, x] = mk(128, 128);
+    const g = x.createRadialGradient(64, 40, 6, 64, 70, 90); g.addColorStop(0, c1); g.addColorStop(1, c2);
+    x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+    const r = Art.rng(c1.length * 7 + 3);
+    x.fillStyle = 'rgba(255,255,255,0.75)';
+    for (let i = 0; i < 12; i++) { x.beginPath(); x.arc(r() * 128, r() * 128, 3 + r() * 6, 0, 7); x.fill(); }
+    cache[key] = c;
+    return c;
+  }
+
+  return { deco, shaft, swirl, cracks, mist, runes, cap };
 })();
