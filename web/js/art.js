@@ -349,9 +349,9 @@ const Art = (() => {
       const d = n2(u * 16, v * 16);
       // flagstones: cell borders from a warped grid
       const gx = (u * 4 + (n3(u * 4, v * 4) - 0.5) * 0.35) * 1, gy = (v * 4 + (n3(u * 4 + 3, v * 4 + 7) - 0.5) * 0.35);
-      const fx = Math.abs((gx % 1) - 0.5) * 2, fy = Math.abs((gy % 1) - 0.5) * 2;
+      const fx = Math.abs((((gx % 1) + 1) % 1) - 0.5) * 2, fy = Math.abs((((gy % 1) + 1) % 1) - 0.5) * 2;
       const edge = Math.max(fx, fy);
-      const crack = edge > 0.965 ? (edge - 0.965) / 0.035 : 0;
+      const crack = edge > 0.955 ? Math.min(1, (edge - 0.955) / 0.045) : 0;
       const t = f * 0.8 + d * 0.2;
       let cr = Z.floor[0] + (Z.floor2[0] - Z.floor[0]) * t;
       let cg = Z.floor[1] + (Z.floor2[1] - Z.floor[1]) * t;

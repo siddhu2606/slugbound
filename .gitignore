@@ -3,4 +3,4 @@ build/
 battle_log.txt
 node_modules/
 web/engine/
-tools/t[0-9].js
+tools/t[0-9]*.js

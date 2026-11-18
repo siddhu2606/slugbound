@@ -297,7 +297,7 @@ const Game = (() => {
     if (loadFirst) {
       const r = await Engine.call('/load'); await handleResp(r);
       if (!r.ok) { UI.toast('Could not load the save: ' + r.error.msg, 'bad'); await Engine.call('/new'); }
-    } else await Engine.call('/new');
+    } else { const n = await Engine.call('/new'); await handleResp(n); }
     const s = await Engine.call('/state'); await handleResp(s);
     World3D.setCamMode('follow');
     await loadZone();
