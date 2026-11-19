@@ -207,6 +207,16 @@ const Game = (() => {
   }
 
   async function runBattle(r) {
+    try { await runBattleInner(r); }
+    catch (e) { console.error('after-duel error', e); }
+    finally {
+      // whatever happened, the controls must come back
+      if (mode === 'battle') mode = 'explore';
+      held = []; UI.showHud(true);
+      try { await refreshZone(); World3D.setPlayer(state.player.x, state.player.y, state.player.dir); UI.updateHud(state); } catch (e2) { console.error(e2); }
+    }
+  }
+  async function runBattleInner(r) {
     mode = 'battle';
     held = [];
     UI.updateHud(state);
@@ -350,6 +360,8 @@ const Game = (() => {
   window.addEventListener('unhandledrejection', (e) => { console.error(e.reason); if (mode === 'battle') return; busy = false; });
 
   function tick() {
+    // safety net: 'battle' mode without a duel on screen would leave the keyboard dead
+    if (mode === 'battle' && !Battle.active() && !Battle.isBusy()) { if (!window.__bsince) window.__bsince = Date.now(); else if (Date.now() - window.__bsince > 2500) { console.warn('left a dead duel mode'); mode = 'explore'; UI.showHud(true); held = []; window.__bsince = 0; } } else window.__bsince = 0;
     // watchdog: if an action got stuck (a lost promise, a glitch) free the controls after a while
     if (busy && mode === 'explore' && !UI.isScreen() && !UI.dialogOpen() && !UI.cardOpen()) { if (!busySince) busySince = Date.now(); else if (Date.now() - busySince > 15000) { console.warn('watchdog freed the controls'); busy = false; busySince = 0; $('fade').classList.remove('on'); } }
     else busySince = 0;
