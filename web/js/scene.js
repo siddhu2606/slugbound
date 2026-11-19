@@ -541,12 +541,10 @@ const World3D = {};
       let sy = 1 + bob * 0.012, sx = 1 - bob * 0.008;
       if (this.walking) {
         this.walk += dt * 14;
-        if (this.hasViews) { const f = 1 + (Math.floor(this.walk / 2.2) % 2); if (f !== this.frame) { this.frame = f; this.plane.material = spriteMat(this.name, this.view, f); } }
-        if (this.hasViews) { const f = 1 + (Math.floor(this.walk / 2.2) % 2); if (f !== this.frame) { this.frame = f; this.plane.material = spriteMat(this.name, this.view, f); } }
-        yOff += Math.abs(Math.sin(this.walk)) * 0.11;
-        sy = 1 + Math.sin(this.walk * 2) * 0.035; sx = 1 - Math.sin(this.walk * 2) * 0.03;
+        if (this.hasViews) { const f = [1, 0, 2, 0][Math.floor(this.walk / 1.6) % 4]; if (f !== this.frame) { this.frame = f; this.plane.material = spriteMat(this.name, this.view, f); } }
+        yOff += Math.abs(Math.sin(this.walk)) * 0.06;
+        sy = 1; sx = 1;
       }
-      if (!this.walking && this.frame && this.hasViews) { this.frame = 0; this.plane.material = spriteMat(this.name, this.view, 0); }
       if (!this.walking && this.frame && this.hasViews) { this.frame = 0; this.plane.material = spriteMat(this.name, this.view, 0); }
       if (this.hop > 0) { this.hop -= dt * 3; yOff += Math.sin(Math.max(0, this.hop) * Math.PI) * 0.45; }
       this.plane.position.y = this.h / 2 + this.float + yOff;

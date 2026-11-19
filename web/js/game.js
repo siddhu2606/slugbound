@@ -103,6 +103,7 @@ const Game = (() => {
     busy = true;
     try {
       const r = await Engine.call('/move', { dir });
+      if (r.restarted) { await resync(r); busy = false; return; }
       await handleResp(r);
       World3D.player.setDir(dir);
       if (!r.ok) {
@@ -119,6 +120,14 @@ const Game = (() => {
       await flushCards();
     } catch (e) { console.error(e); }
     busy = false;
+  }
+  // the engine had to be restarted: show what it now holds instead of pretending nothing happened
+  async function resync(r) {
+    UI.toast(r.error.msg, 'bad');
+    const s = await Engine.call('/state');
+    if (s.state) { state = s.state; UI.updateHud(state); }
+    await loadZone();
+    World3D.setPlayer(state.player.x, state.player.y, state.player.dir);
   }
   function lockedPuff(dir) {
     const p = state.player, d = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[dir];
@@ -249,6 +258,7 @@ const Game = (() => {
     Sound.ensure();
     const k = e.key;
     if (['Tab', ' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) e.preventDefault();
+    if (UI.isScreen() && mode === 'title') { if (k === 'Escape' || k === 'Enter' || k === ' ') { Sound.sfx.back(); UI.closeScreen(); } return; }
     if (mode === 'title') { if (k === 'Enter') $('btnNew').click(); return; }
     if (UI.cardOpen()) { if (['e', 'E', 'Enter', ' ', 'Escape'].includes(k)) UI.closeCard(); return; }
     if (UI.dialogOpen()) { if (['e', 'E', 'Enter', ' '].includes(k)) UI.dialogAdvance(); return; }
@@ -273,6 +283,7 @@ const Game = (() => {
     else if (k === 'h' || k === 'H') { guideOn = !guideOn; UI.toast(guideOn ? 'Direction arrow on (H to hide)' : 'Direction arrow off'); }
     else if (k === 'm' || k === 'M') { Sound.toggleMute(); UI.toast(Sound.muted ? 'Sound off' : 'Sound on'); }
   });
+  document.addEventListener('click', () => { const a = document.activeElement; if (a && a !== document.body && a.tagName === 'BUTTON') a.blur(); });
   window.addEventListener('keyup', (e) => { const d = DIRS[e.key]; if (d) held = held.filter((x) => x !== d); });
   window.addEventListener('blur', () => (held = []));
   $('queueBar').addEventListener('click', () => { if (mode === 'explore' && !busy && !UI.isScreen()) UI.blasterScreen(); });

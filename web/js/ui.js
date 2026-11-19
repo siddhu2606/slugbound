@@ -50,8 +50,11 @@ const UI = (() => {
   //  toasts
   // ---------------------------------------------------------
   function toast(msg, kind = '') {
+    const box = $('toasts');
+    if ([...box.children].some((c) => c.textContent === msg)) return;      // never stack the same message
+    while (box.children.length >= 3) box.firstChild.remove();
     const t = document.createElement('div'); t.className = 'toast ' + kind; t.textContent = msg;
-    $('toasts').appendChild(t);
+    box.appendChild(t);
     setTimeout(() => t.remove(), 3200);
   }
 
@@ -307,6 +310,7 @@ const UI = (() => {
       <p><b>Slugbound</b> is a game about C++ objects. Every rule (movement, damage, turn order, saves) is calculated by a <b>C++ engine</b>. The browser only draws what C++ tells it.</p>
       <h3>Controls</h3><table><tr><td><kbd>W A S D</kbd> / arrows</td><td>walk</td></tr><tr><td><kbd>E</kbd> / <kbd>Space</kbd></td><td>talk, open, interact (face the thing)</td></tr><tr><td><kbd>H</kbd></td><td>show or hide the direction arrow (it points at the next thing to do)</td></tr><tr><td><kbd>B</kbd></td><td>blaster and slugs</td></tr><tr><td><kbd>P</kbd></td><td>Slugpedia</td></tr><tr><td><kbd>Tab</kbd></td><td>Code Lens: class tags and a live console of constructors, destructors and exceptions</td></tr><tr><td><kbd>Esc</kbd></td><td>menu (save, load, quality)</td></tr><tr><td><kbd>1</kbd>-<kbd>5</kbd></td><td>fire, swap, guard, moss, run in a duel</td></tr></table>
       <h3>The element wheel</h3><p>${Art.iconHtml('Fire')} Fire → ${Art.iconHtml('Ice')} Ice → ${Art.iconHtml('Air')} Air → ${Art.iconHtml('Earth')} Earth → ${Art.iconHtml('Energy')} Energy → ${Art.iconHtml('Fire')} Fire. Hit the next element for <b>2x</b>, the previous for <b>0.5x</b>.</p>
+      <h3>The 11 OOP cards</h3><p>While you play, 11 cards pop up, one for each C++ idea you just triggered. Press <kbd>E</kbd> to close one. You can find all of them in order:</p><table><tr><td><b>1. You, the Slinger</b><br><span style="opacity:.75">Appears when you take your first step.</span></td><td>Virtual inheritance: the diamond</td></tr><tr><td><b>2. Your starter slug</b><br><span style="opacity:.75">Appears after Old Mossback gives you your first slug.</span></td><td>Abstract class Slug and polymorphism</td></tr><tr><td><b>3. Slugpedia</b><br><span style="opacity:.75">Appears the first time you open the Slugpedia (P).</span></td><td>Template Registry&lt;T&gt;</td></tr><tr><td><b>4. The Blaster</b><br><span style="opacity:.75">Appears the first time you open the Blaster (B).</span></td><td>STL queue of Slug pointers</td></tr><tr><td><b>5. The duel</b><br><span style="opacity:.75">Appears after your first shot in a duel.</span></td><td>How a battle is built from objects</td></tr><tr><td><b>6. The damage calculator</b><br><span style="opacity:.75">Appears after your first super-effective or resisted hit.</span></td><td>Element wheel and static helpers</td></tr><tr><td><b>7. The cracked wall</b><br><span style="opacity:.75">Appears when an Earth slug smashes the cracked wall.</span></td><td>Interactable and virtual interact()</td></tr><tr><td><b>8. The locked gate</b><br><span style="opacity:.75">Appears when you bump into a gate you cannot open yet.</span></td><td>Exceptions: throw, catch, stack unwinding</td></tr><tr><td><b>9. Fusion</b><br><span style="opacity:.75">Appears when you fuse two slugs at the Fusion Stone.</span></td><td>operator+, constructors and destructors</td></tr><tr><td><b>10. Saving</b><br><span style="opacity:.75">Appears the first time you save.</span></td><td>Binary file handling</td></tr><tr><td><b>11. Destructors</b><br><span style="opacity:.75">Appears when a slug faints, you are defeated, or you release a slug.</span></td><td>Objects dying in reverse order</td></tr></table>
       <h3>Gates</h3><p>The slug that opens a gate must be <b>in your blaster</b>: Earth smashes walls, Ice freezes lava and water, Air glides across chasms, Energy powers crystal doors. Find the 3 keystones, break into Gorvax's Keep and take back the light.</p>
     </div><div class="sheet-foot"><span><kbd>Esc</kbd> close</span></div></div>`, 'how');
   }

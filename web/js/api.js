@@ -32,7 +32,19 @@ const Engine = (() => {
 
   async function call(route, body) {
     try { return await callRaw(route, body); }
-    catch (e) { console.error('engine call failed', route, e); return { ok: false, error: { kind: 'ClientError', msg: 'Something went wrong talking to the engine. Try again.' } }; }
+    catch (e) {
+      console.error('engine call failed', route, e);
+      // a crashed WebAssembly module never recovers by itself: start a fresh one from the last save
+      if (mode === 'wasm' && typeof SlugEngine === 'function') {
+        try {
+          mod = await SlugEngine(); fn = mod.cwrap('slug_api', 'string', ['string', 'string']);
+          let r = await callRaw('/load', {});
+          if (!r.ok) r = await callRaw('/new', {});
+          return { ok: false, restarted: true, error: { kind: 'EngineRestarted', msg: 'The engine hiccuped and restarted from your last save.' } };
+        } catch (e2) { console.error('restart failed', e2); }
+      }
+      return { ok: false, error: { kind: 'ClientError', msg: 'The game could not answer that. Try again.' } };
+    }
   }
   async function callRaw(route, body) {
     const payload = JSON.stringify(body || {});

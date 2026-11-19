@@ -118,16 +118,18 @@ const Art = (() => {
     if (o.robeTrim) P(ctx, rr(cx - bw / 2 + 4, 292, bw - 8, 12, 5), o.robeTrim, 3);
     // arms
     if (!side) {
-      [[cx - 52, -1], [cx + 52, 1]].forEach(([ax, s]) => {
-        ctx.save(); ctx.translate(ax, 234 - (walk ? 6 : 0)); ctx.rotate(0.14 * s + (walk === 1 ? 0.4 * s : walk === 2 ? -0.4 * s : 0));
-        P(ctx, ell(0, 0, 16, 42), lg(ctx, -16, 0, 16, 0, o.top, o.topDark), 6);
-        P(ctx, ell(0, 40, 12, 12), o.skin, 5);
+      const sw = walk === 1 ? [-12, 10] : walk === 2 ? [10, -12] : [0, 0];
+      [[cx - 52, -1], [cx + 52, 1]].forEach(([ax, s], i) => {
+        ctx.save(); ctx.translate(ax, 198 + sw[i]); ctx.rotate(0.14 * s);
+        P(ctx, ell(0, 36, 16, 42), lg(ctx, -16, 0, 16, 0, o.top, o.topDark), 6);
+        P(ctx, ell(0, 76, 12, 12), o.skin, 5);
         ctx.restore();
       });
     } else {
-      ctx.save(); ctx.translate(cx + 2, 236); ctx.rotate(-0.1);
-      P(ctx, ell(0, 0, 17, 42), lg(ctx, -16, 0, 16, 0, o.top, o.topDark), 6);
-      P(ctx, ell(0, 40, 12, 12), o.skin, 5);
+      // side view: the arm swings opposite to the front leg
+      ctx.save(); ctx.translate(cx + 2, 198); ctx.rotate(-0.1 + (walk === 1 ? -0.6 : walk === 2 ? 0.6 : 0));
+      P(ctx, ell(0, 38, 17, 42), lg(ctx, -16, 0, 16, 0, o.top, o.topDark), 6);
+      P(ctx, ell(0, 78, 12, 12), o.skin, 5);
       ctx.restore();
     }
     // head

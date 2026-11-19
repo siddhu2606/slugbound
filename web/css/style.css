@@ -126,7 +126,7 @@ kbd { font-family: var(--mono); font-size: 10px; background: #0a0e2a; color: var
 #iris.on { clip-path: circle(150% at 50% 50%); }
 
 /* ---------- screens ---------- */
-#screen { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(3, 5, 16, .72); }
+#screen { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; background: rgba(3, 5, 16, .72); }
 .sheet { width: min(980px, 94vw); max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
 .sheet-head { display: flex; align-items: center; padding: 10px 22px; border-bottom: 1px solid #4a5496; gap: 12px; } .sheet-head h2 { margin: 0; font-family: var(--head); font-size: 24px; letter-spacing: 4px; flex: 1; color: var(--gold2); } .sheet-head small { color: var(--dim); font-family: var(--mono); font-size: 11px; }
 .sheet-body { padding: 16px 22px; overflow-y: auto; }
@@ -153,7 +153,7 @@ kbd { font-family: var(--mono); font-size: 10px; background: #0a0e2a; color: var
 .btn { padding: 6px 16px; font-family: var(--head); font-weight: 700; font-size: 14px; letter-spacing: 1px; background: #121746; border: 2px solid #aab0d8; border-radius: 2px; } .btn:hover:not(:disabled) { border-color: var(--gold2); color: var(--gold2); } .btn:disabled { opacity: .35; }
 .btn.gold { background: linear-gradient(#f0d078, #b8902c); color: #281c04; border-color: #fff2b8; } .btn.danger:hover { border-color: var(--red); color: var(--red); }
 .fuse-stage { display: flex; align-items: center; justify-content: center; gap: 22px; margin: 6px 0 16px; } .fuse-plus { font-family: var(--head); font-size: 40px; color: var(--gold2); } .fuse-box { width: 150px; height: 150px; border: 1px dashed #5a64a8; display: flex; flex-direction: column; align-items: center; justify-content: center; } .fuse-box img { width: 90px; }
-.how { font-size: 16px; line-height: 1.5; } .how h3 { margin: 12px 0 4px; font-family: var(--head); color: var(--gold2); letter-spacing: 1px; } .how td { padding: 2px 14px 2px 0; }
+.how { font-family: "Segoe UI", Verdana, sans-serif; font-size: 16px; line-height: 1.5; } .how h3 { margin: 12px 0 4px; font-family: var(--head); color: var(--gold2); letter-spacing: 1px; } .how td { padding: 2px 14px 2px 0; }
 .pedia-detail { display: flex; gap: 16px; align-items: center; padding: 6px 0 12px; } .pedia-detail img { width: 120px; }
 
 /* ---------- OOP card: parchment and ink inside the same window frame ---------- */
