@@ -425,6 +425,7 @@ const Battle = (() => {
   async function run(startResp, opts) {
     handler = opts.handle; flushCards = opts.flushCards;
     const b = startResp.battle;
+    if (resolveBattle) { const old = resolveBattle; resolveBattle = null; old(lastResp || startResp); }
     const done = new Promise((resolve) => { resolveBattle = resolve; });
     cur = b; busy = true; lastResp = startResp;
     const zid = World3D.zone.id;
@@ -625,5 +626,5 @@ const Battle = (() => {
     try { World3D.setCamMode('follow'); World3D.camera.fov = fovBefore || World3D.camera.fov; } catch (e) { /* ignore */ }
     busy = false; cur = null; resolveBattle = null; arena = arena && null;
   }
-  return { abort, run, command, moveCursor, confirm, active, isBusy: () => busy };
+  return { lastResponse: () => lastResp, abort, run, command, moveCursor, confirm, active, isBusy: () => busy };
 })();

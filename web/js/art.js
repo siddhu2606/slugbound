@@ -127,7 +127,7 @@ const Art = (() => {
       });
     } else {
       // side view: the arm swings opposite to the front leg
-      ctx.save(); ctx.translate(cx + 2, 198); ctx.rotate(-0.1 + (walk === 1 ? -0.6 : walk === 2 ? 0.6 : 0));
+      ctx.save(); ctx.translate(cx + 2, 198); ctx.rotate(-0.1 + (walk === 1 ? -0.22 : walk === 2 ? 0.22 : 0));
       P(ctx, ell(0, 38, 17, 42), lg(ctx, -16, 0, 16, 0, o.top, o.topDark), 6);
       P(ctx, ell(0, 78, 12, 12), o.skin, 5);
       ctx.restore();

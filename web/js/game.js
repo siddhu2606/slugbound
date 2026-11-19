@@ -223,8 +223,18 @@ const Game = (() => {
     const dlgEvent = r.event && r.event.lines && r.event.lines.length ? r.event : null;
     if (r.event && r.event.text && r.event.type === 'battle') UI.toast(r.event.text, 'bad');
     let res;
-    try { res = await Battle.run(r, { handle: handleResp, flushCards }); }
+    // if the duel scene is gone but the promise never settles, stop waiting for it (this was the dead-keyboard bug)
+    let stale = 0;
+    let iv = null;
+    const watcher = new Promise((resolve) => {
+      iv = setInterval(() => {
+        if (!Battle.active() && !Battle.isBusy()) stale += 250; else stale = 0;
+        if (stale >= 1500) { clearInterval(iv); resolve(Battle.lastResponse() || { battle: null }); }
+      }, 250);
+    });
+    try { res = await Promise.race([Battle.run(r, { handle: handleResp, flushCards }), watcher]); clearInterval(iv); if (!res || !res.battle || !res.battle.over) throw new Error('duel ended without a result'); }
     catch (e) {
+      clearInterval(iv);
       // the 3D duel broke: tidy up, finish the duel inside the C++ engine so no rule is skipped, and carry on
       console.error('duel scene failed', e);
       Battle.abort();
