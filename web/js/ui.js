@@ -124,7 +124,7 @@ const UI = (() => {
       <div class="oop-row"><b>Data members:</b> ${esc(c.data)}</div>
       <div class="oop-funcs">${c.funcs.map((f) => `<div>${esc(f)}</div>`).join('')}</div>
       <div class="oop-concepts">${oop}</div>
-      ${c.viva ? `<div class="oop-viva"><b>VIVA LINE</b>${esc(c.viva)}</div>` : ''}
+
       <div class="oop-foot"><span>Press <kbd>E</kbd> or click to continue · every card is produced by the class itself, through describeOOP()</span></div>
     </div></div>`;
   }
@@ -305,7 +305,7 @@ const UI = (() => {
   function howScreen() {
     openScreen(`<div class="sheet"><div class="sheet-head"><h2>HOW TO PLAY</h2></div><div class="sheet-body how">
       <p><b>Slugbound</b> is a game about C++ objects. Every rule (movement, damage, turn order, saves) is calculated by a <b>C++ engine</b>. The browser only draws what C++ tells it.</p>
-      <h3>Controls</h3><table><tr><td><kbd>W A S D</kbd> / arrows</td><td>walk</td></tr><tr><td><kbd>E</kbd> / <kbd>Space</kbd></td><td>talk, open, interact (face the thing)</td></tr><tr><td><kbd>B</kbd></td><td>blaster and slugs</td></tr><tr><td><kbd>P</kbd></td><td>Slugpedia</td></tr><tr><td><kbd>Tab</kbd></td><td>Code Lens: class tags and a live console of constructors, destructors and exceptions</td></tr><tr><td><kbd>Esc</kbd></td><td>menu (save, load, quality)</td></tr><tr><td><kbd>1</kbd>-<kbd>5</kbd></td><td>fire, swap, guard, moss, run in a duel</td></tr></table>
+      <h3>Controls</h3><table><tr><td><kbd>W A S D</kbd> / arrows</td><td>walk</td></tr><tr><td><kbd>E</kbd> / <kbd>Space</kbd></td><td>talk, open, interact (face the thing)</td></tr><tr><td><kbd>H</kbd></td><td>show or hide the direction arrow (it points at the next thing to do)</td></tr><tr><td><kbd>B</kbd></td><td>blaster and slugs</td></tr><tr><td><kbd>P</kbd></td><td>Slugpedia</td></tr><tr><td><kbd>Tab</kbd></td><td>Code Lens: class tags and a live console of constructors, destructors and exceptions</td></tr><tr><td><kbd>Esc</kbd></td><td>menu (save, load, quality)</td></tr><tr><td><kbd>1</kbd>-<kbd>5</kbd></td><td>fire, swap, guard, moss, run in a duel</td></tr></table>
       <h3>The element wheel</h3><p>${Art.iconHtml('Fire')} Fire → ${Art.iconHtml('Ice')} Ice → ${Art.iconHtml('Air')} Air → ${Art.iconHtml('Earth')} Earth → ${Art.iconHtml('Energy')} Energy → ${Art.iconHtml('Fire')} Fire. Hit the next element for <b>2x</b>, the previous for <b>0.5x</b>.</p>
       <h3>Gates</h3><p>The slug that opens a gate must be <b>in your blaster</b>: Earth smashes walls, Ice freezes lava and water, Air glides across chasms, Energy powers crystal doors. Find the 3 keystones, break into Gorvax's Keep and take back the light.</p>
     </div><div class="sheet-foot"><span><kbd>Esc</kbd> close</span></div></div>`, 'how');

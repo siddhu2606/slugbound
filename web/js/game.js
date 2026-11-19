@@ -93,7 +93,7 @@ const Game = (() => {
   const PROMPTS = { chest: 'Open the chest', mossback: 'Talk to Old Mossback', trader: 'Talk to Trader Pim', spring: 'Touch the heart shard', fusionstone: 'Use the Fusion Stone', altar: 'Take the keystone', rival: 'Duel Kessa', boss: 'Face Gorvax', heartcrystal: 'Touch the Heartcrystal', wall: 'Smash (needs Earth)', gap: 'Glide (needs Air)', bridge: 'Freeze (needs Ice)', door: 'Power (needs Energy)', keepgate: 'Open (needs 3 keystones)', ghoul: 'Fight' };
   function updatePrompt() {
     let el = $('prompt');
-    if (!el) { el = document.createElement('div'); el.id = 'prompt'; el.style.cssText = 'position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:rgba(10,18,32,.82);border:1px solid rgba(255,255,255,.2);border-radius:99px;padding:6px 18px;font-size:18px;font-weight:700;z-index:11;pointer-events:none;transition:opacity .2s;'; document.body.appendChild(el); }
+    if (!el) { el = document.createElement('div'); el.id = 'prompt'; el.style.cssText = 'position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:rgba(10,18,32,.82);border:1px solid rgba(255,255,255,.2);padding:6px 18px;font-size:18px;font-weight:700;color:#fff7e0;z-index:11;pointer-events:none;transition:opacity .2s;'; document.body.appendChild(el); }
     const o = mode === 'explore' && !busy ? objectAhead() : null;
     if (o && PROMPTS[o.kind] && !(o.done && ['chest', 'altar'].includes(o.kind))) { el.innerHTML = '<kbd>E</kbd> ' + PROMPTS[o.kind]; el.style.opacity = 1; }
     else el.style.opacity = 0;
@@ -111,7 +111,7 @@ const Game = (() => {
       } else {
         if (r.zoneChanged) { Sound.sfx.encounter(); await enterZone(true); }
         else {
-          if (r.moved) { Sound.sfx.step(); await World3D.stepPlayer(dir, r.x, r.y, 0.15); }
+          if (r.moved) { stepsTaken++; if (stepsTaken > 12) $('keyhint').classList.add('out'); Sound.sfx.step(); await World3D.stepPlayer(dir, r.x, r.y, 0.15); }
           if (r.battle) await runBattle(r);
           else if (r.event) await handleEvent(r.event);
         }
@@ -145,6 +145,7 @@ const Game = (() => {
     if (t === 'bump' || t === 'blocked') return;
     if (t === 'msg') { if (ev.text) UI.toast(ev.text); return; }
     if (t === 'dialog') {
+      if (ev.speaker) talked[ev.speaker] = true;
       World3D.flash(0.0);
       const portrait = ev.speaker === 'Old Mossback' ? 'mossback' : ev.speaker === 'Trader Pim' ? 'pim' : null;
       for (let i = 0; i < ev.lines.length; i++) {
@@ -269,6 +270,7 @@ const Game = (() => {
     else if (k === 'b' || k === 'B') { Sound.sfx.select(); UI.blasterScreen(); }
     else if (k === 'p' || k === 'P') { Sound.sfx.select(); UI.pediaScreen(); }
     else if (k === 'Tab') toggleLens();
+    else if (k === 'h' || k === 'H') { guideOn = !guideOn; UI.toast(guideOn ? 'Direction arrow on (H to hide)' : 'Direction arrow off'); }
     else if (k === 'm' || k === 'M') { Sound.toggleMute(); UI.toast(Sound.muted ? 'Sound off' : 'Sound on'); }
   });
   window.addEventListener('keyup', (e) => { const d = DIRS[e.key]; if (d) held = held.filter((x) => x !== d); });
@@ -276,7 +278,53 @@ const Game = (() => {
   $('queueBar').addEventListener('click', () => { if (mode === 'explore' && !busy && !UI.isScreen()) UI.blasterScreen(); });
   $('consoleClose').addEventListener('click', () => { UI.toggleConsole(false); UI.lensSet(false); });
 
+  // ---- direction hints: a small arrow pointing at the next thing to do, plus on-screen keys
+  let stepsTaken = 0, talked = {}, guideOn = true, busySince = 0;
+  const GUIDE_KINDS = ['mossback', 'chest', 'altar', 'boss', 'heartcrystal', 'wall', 'gap', 'bridge', 'door', 'keepgate'];
+  function guideTarget() {
+    const p = state.player;
+    let best = null, bd = 1e9;
+    const consider = (x, y) => { const d = Math.abs(x - p.x) + Math.abs(y - p.y); if (d < bd) { bd = d; best = { x, y, d }; } };
+    zone.objects.forEach((o) => {
+      if (!GUIDE_KINDS.includes(o.kind) || o.done) return;
+      if (o.kind === 'mossback' && talked['Old Mossback']) return;
+      consider(o.x, o.y);
+    });
+    if (!best && zone.exits) zone.exits.forEach((e) => consider(e.x, e.y));
+    return best;
+  }
+  function project(v) {
+    const eng = World3D.engine, sc = World3D.scene, k = eng.getHardwareScalingLevel();
+    const vp = World3D.camera.viewport.toGlobal(eng.getRenderWidth(), eng.getRenderHeight());
+    const q = BABYLON.Vector3.Project(v, BABYLON.Matrix.Identity(), sc.getTransformMatrix(), vp);
+    return { x: q.x * k, y: q.y * k };
+  }
+  function updateGuide() {
+    const g = $('guide');
+    let on = false;
+    try {
+      if (guideOn && mode === 'explore' && !busy && !UI.isScreen() && !UI.dialogOpen() && !UI.cardOpen() && zone && state && World3D.player) {
+        const t = guideTarget();
+        if (t && t.d > 1) {
+          const pn = World3D.player.node.position, a = project(new BABYLON.Vector3(pn.x, pn.y + 1.0, pn.z)), b = project(new BABYLON.Vector3(t.x, 0.8, -t.y));
+          const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1, bob = Math.sin(performance.now() / 260) * 5;
+          g.style.transform = 'translate(' + (a.x + dx / len * (84 + bob)) + 'px,' + (a.y - 40 + dy / len * (84 + bob)) + 'px)';
+          g.firstElementChild.style.transform = 'rotate(' + Math.atan2(dy, dx) + 'rad)';
+          g.lastElementChild.textContent = t.d;
+          on = true;
+        }
+      }
+    } catch (e) { /* hints are optional */ }
+    g.classList.toggle('on', on);
+    document.querySelectorAll('#keyhint [data-k]').forEach((el) => el.classList.toggle('on', held.includes(el.dataset.k)));
+  }
+  window.addEventListener('unhandledrejection', (e) => { console.error(e.reason); if (mode === 'battle') return; busy = false; });
+
   function tick() {
+    // watchdog: if an action got stuck (a lost promise, a glitch) free the controls after a while
+    if (busy && mode === 'explore' && !UI.isScreen() && !UI.dialogOpen() && !UI.cardOpen()) { if (!busySince) busySince = Date.now(); else if (Date.now() - busySince > 15000) { console.warn('watchdog freed the controls'); busy = false; busySince = 0; $('fade').classList.remove('on'); } }
+    else busySince = 0;
+    updateGuide();
     if (mode === 'explore' && !busy && !UI.isScreen() && !UI.dialogOpen() && !UI.cardOpen() && held.length) step(held[held.length - 1]);
     updatePrompt();
   }
@@ -294,6 +342,11 @@ const Game = (() => {
   }
 
   async function beginPlay(loadFirst) {
+    if (started) return;
+    started = true;
+    try { await beginPlayInner(loadFirst); } catch (e) { console.error(e); started = false; $('fade').classList.remove('on'); $('title').classList.remove('out'); UI.toast('Could not start. Try again.', 'bad'); }
+  }
+  async function beginPlayInner(loadFirst) {
     Sound.ensure();
     $('title').classList.add('out');
     $('fade').classList.add('on'); await wait(500);
@@ -308,7 +361,8 @@ const Game = (() => {
     UI.showHud(true);
     $('fade').classList.remove('on');
     UI.zoneBanner(zone.name);
-    mode = 'explore';
+    mode = 'explore'; stepsTaken = 0; talked = {}; busy = false; held = [];
+    $('keyhint').classList.toggle('out', loadFirst);
     if (!loadFirst) setTimeout(() => UI.toast('Welcome, Slinger. Walk with WASD, talk with E.', 'good'), 800);
     setTimeout(() => $('title').style.display = 'none', 900);
   }

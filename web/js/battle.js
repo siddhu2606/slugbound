@@ -426,7 +426,7 @@ const Battle = (() => {
     handler = opts.handle; flushCards = opts.flushCards;
     const b = startResp.battle;
     const done = new Promise((resolve) => { resolveBattle = resolve; });
-    cur = b; busy = true;
+    cur = b; busy = true; lastResp = startResp;
     const zid = World3D.zone.id;
     Sound.sfx.encounter();
     World3D.flash(0.8);
@@ -475,8 +475,30 @@ const Battle = (() => {
     if (b.turn === 'player') { banner('YOUR TURN', '#5affbe'); await say('What will you do?', 0); }
   }
 
+  let lastResp = null;
+  // any error in an animation must never leave the duel frozen: recover, or end the duel safely
   async function command(cmd) {
     if (busy || !cur || cur.over || cur.turn !== 'player') return;
+    try { await commandInner(cmd); }
+    catch (e) { console.error('battle error', e); await recover(); }
+  }
+  async function recover() {
+    try {
+      if (cur && cur.over && lastResp) return await finish(lastResp);
+      busy = false;
+      if (cur && !cur.over) { await enemyTurn(); }
+      if (!cur.over && cur.turn !== 'player') cur.turn = 'player';
+      busy = false; updateHud(cur);
+    } catch (e2) {
+      console.error('battle recovery failed', e2);
+      try {
+        const st = await Engine.call('/state');
+        busy = false; if (cur) { cur.turn = 'player'; updateHud(cur); }
+        if (st && st.state && !st.state.inBattle && resolveBattle) { teardown(); const rs = resolveBattle; resolveBattle = null; rs(lastResp || { battle: cur || {} }); }
+      } catch (e3) { busy = false; }
+    }
+  }
+  async function commandInner(cmd) {
     busy = true; document.querySelectorAll('.cmd').forEach((c) => (c.disabled = true));
     Sound.sfx.select();
     const route = { fire: '/fire', swap: '/swap', guard: '/guard', moss: '/moss', run: '/run' }[cmd];
@@ -487,7 +509,7 @@ const Battle = (() => {
       UI.toast(msg, 'bad'); Sound.sfx.locked();
       await handler(r); updateHud(cur); return;
     }
-    await handler(r);
+    await handler(r); lastResp = r;
     const b = r.battle, a = r.action;
     if (cmd === 'fire') {
       const s = a.slug;
@@ -525,7 +547,7 @@ const Battle = (() => {
     await wait(250);
     const r = await Engine.call('/enemyturn');
     if (!r.ok) { busy = false; await handler(r); return; }
-    await handler(r);
+    await handler(r); lastResp = r;
     const b = r.battle, m = r.action;
     if (m.burn > 0) { Slugs3D.burst(enemyCenter(), 'Fire', 24, 0.8); floater(String(m.burn), 'take', enemyCenter().add(V3(0, 1, 0))); await say(`${cur.enemy.name} is hurt by its burn!`, 200); setBar($('enHp'), b.enemy.hp, b.enemy.maxHp); }
     if (m.killed) { updateHud(b); return finish(r); }

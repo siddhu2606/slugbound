@@ -31,6 +31,10 @@ const Engine = (() => {
   }
 
   async function call(route, body) {
+    try { return await callRaw(route, body); }
+    catch (e) { console.error('engine call failed', route, e); return { ok: false, error: { kind: 'ClientError', msg: 'Something went wrong talking to the engine. Try again.' } }; }
+  }
+  async function callRaw(route, body) {
     const payload = JSON.stringify(body || {});
     let raw;
     if (mode === 'wasm') {
@@ -49,6 +53,7 @@ const Engine = (() => {
       }
     } else {
       const res = await fetch('api' + route, { method: 'POST', body: payload });
+      if (!res.ok && res.status >= 500) throw new Error('server ' + res.status);
       raw = await res.text();
       if (route === '/save') { try { localStorage.setItem(SAVE_KEY + '.http', '1'); } catch (e) {} }
     }
