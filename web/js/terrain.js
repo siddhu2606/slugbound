@@ -15,7 +15,7 @@ const Terrain = (() => {
   // palettes: the zone identity lives here (and in lighting), not in tile types
   const PAL = {
     grotto:  { dirt: '#2c4a46', dirt2: '#4a7a66', moss: '#3fd69a', moss2: '#1f8a64', wet: '#18343c', rock: '#3a4a6a', rock2: '#7a98b8', dust: '#8affd8', deep: '#04121a' },
-    hollows: { dirt: '#34507c', dirt2: '#6a98c8', moss: '#9ad8ff', moss2: '#4a88c8', wet: '#18305c', rock: '#3a4c88', rock2: '#9cc0f0', dust: '#e0f4ff', deep: '#040c24' },
+    hollows: { dirt: '#2c4672', dirt2: '#5a82b8', moss: '#8ad0f0', moss2: '#3a78b8', wet: '#16284c', rock: '#2a3a78', rock2: '#6a88c4', dust: '#d0ecff', deep: '#040a20' },
     vein:    { dirt: '#4a2e2c', dirt2: '#8a5238', moss: '#c8702a', moss2: '#7a3a18', wet: '#2a1412', rock: '#3a2226', rock2: '#9a5a44', dust: '#ffa040', deep: '#120403' },
     keep:    { dirt: '#3c3050', dirt2: '#6a5888', moss: '#8a4a7a', moss2: '#4a2a5a', wet: '#1a1228', rock: '#2c2440', rock2: '#7a6a9a', dust: '#ff5a7a', deep: '#0a0310' },
   };
@@ -91,6 +91,7 @@ const Terrain = (() => {
       let tall = 2.3 + nz * 2.4 + far * 0.32;
       const low = 0.5 + nz * 0.9;
       let h = mix(tall, low, frontB[k] * (far > 2 ? 0.3 : 1)) * r;
+      if (y > zone.h - 1) h = Math.min(h, (0.45 + nz * 0.8) * r);          // south of the map stays low: the camera sits there
       const t = h * 2.6; h = (Math.floor(t) + smooth(0.3, 0.7, t - Math.floor(t))) / 2.6;   // stacked terraces
       h += Art.fbm(nA, x * 1.4, y * 1.4, 2) * 0.22 * r;
       const flat = (Art.fbm(nB, x * 0.6, y * 0.6, 2) - 0.5) * 0.07;

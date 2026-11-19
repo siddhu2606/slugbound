@@ -10,8 +10,12 @@ Every system in the game exists to demonstrate an OOP concept, and the game **te
 
 | | |
 |---|---|
-| ![grotto](docs/screens/grotto.png) | ![battle](docs/screens/battle.png) |
-| ![card](docs/screens/card.png) | ![lens](docs/screens/lens.png) |
+| After (HD-2D rework) | |
+|---|---|
+| ![grotto](docs/screens/after_grotto_5_12.png) | ![battle](docs/screens/after_battle_hit.png) |
+| ![vein](docs/screens/after_vein_12_12.png) | ![keep](docs/screens/after_keep_11_13.png) |
+
+Before the rework: [grotto](docs/screens/before_grotto.png), [battle](docs/screens/before_battle.png).
 
 ## How it works
 
