@@ -107,8 +107,11 @@ const Game = (() => {
       await handleResp(r);
       World3D.player.setDir(dir);
       if (!r.ok) {
-        if (r.locked) { Sound.sfx.locked(); World3D.addShake(0.12); UI.toast(r.msg, 'bad'); lockedPuff(dir); }
+        // a blocked path: feedback once, then a short pause so a held key does not keep bouncing the view
+        if (r.locked) { Sound.sfx.locked(); World3D.addShake(0.05); UI.toast(r.msg, 'bad'); lockedPuff(dir); }
         else UI.toast(r.error.msg, 'bad');
+        blockedUntil = Date.now() + 700; held = [];
+        World3D.setPlayer(state.player.x, state.player.y, dir);
       } else {
         if (r.zoneChanged) { Sound.sfx.encounter(); await enterZone(true); }
         else {
@@ -328,6 +331,7 @@ const Game = (() => {
   $('consoleClose').addEventListener('click', () => { UI.toggleConsole(false); UI.lensSet(false); });
 
   // ---- direction hints: a small arrow pointing at the next thing to do, plus on-screen keys
+  let blockedUntil = 0;
   let stepsTaken = 0, talked = {}, guideOn = true, busySince = 0;
   const GUIDE_KINDS = ['mossback', 'chest', 'altar', 'boss', 'heartcrystal', 'wall', 'gap', 'bridge', 'door', 'keepgate'];
   function guideTarget() {
@@ -376,7 +380,8 @@ const Game = (() => {
     if (busy && mode === 'explore' && !UI.isScreen() && !UI.dialogOpen() && !UI.cardOpen()) { if (!busySince) busySince = Date.now(); else if (Date.now() - busySince > 15000) { console.warn('watchdog freed the controls'); busy = false; busySince = 0; $('fade').classList.remove('on'); } }
     else busySince = 0;
     updateGuide();
-    if (mode === 'explore' && !busy && !UI.isScreen() && !UI.dialogOpen() && !UI.cardOpen() && held.length) step(held[held.length - 1]);
+    if (mode === 'explore' && !busy && state && World3D.player && !World3D.player.walking) { const pn = World3D.player.node.position; if (Math.abs(pn.x - state.player.x) > 0.05 || Math.abs(pn.z + state.player.y) > 0.05) World3D.setPlayer(state.player.x, state.player.y, state.player.dir); }
+    if (mode === 'explore' && !busy && !UI.isScreen() && !UI.dialogOpen() && !UI.cardOpen() && held.length && Date.now() > blockedUntil) step(held[held.length - 1]);
     updatePrompt();
   }
 

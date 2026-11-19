@@ -12,6 +12,7 @@ const Battle = (() => {
   const ENEMY_POS = V3(C.x + 2.6, 0, C.z + 1.9);
   const CAM = { pos: V3(C.x - 7.8, 4.2, C.z - 9.4), look: V3(C.x + 0.5, 0.2, C.z + 0.6) };
 
+  let trainer = null;
   let arena = null, frontModel = null, enemyModel = null, enemyActor = null, playerActor = null, minionActors = [];
   let camPos = CAM.pos.clone(), camLook = CAM.look.clone(), camT = 0, camDesired = null, battleLight = null, fxLight = null, redPulse = 0;
   let cur = null;            // latest battle state from the engine
@@ -113,6 +114,18 @@ const Battle = (() => {
       faceTo(enemyModel.root, ENEMY_POS, PLAYER_POS);
       World3D.shadowGen && enemyModel.meshes.forEach((m) => World3D.shadowGen.addShadowCaster(m));
       enemyModel.baseScale = 1.85;
+      return;
+    }
+    if (kind === 'rival') {
+      // a trainer never fights bare-handed: she stands back and sends out her slug
+      enemyModel = Slugs3D.create(e.element);
+      enemyModel.root.parent = arena; enemyModel.root.position.copyFrom(ENEMY_POS); enemyModel.root.scaling.setAll(1.85);
+      faceTo(enemyModel.root, ENEMY_POS, PLAYER_POS);
+      World3D.shadowGen && enemyModel.meshes.forEach((m) => World3D.shadowGen.addShadowCaster(m));
+      enemyModel.baseScale = 1.85;
+      trainer = new World3D.Actor('kessa', { h: 2.2 });
+      trainer.node.parent = arena; trainer.node.position.set(ENEMY_POS.x + 2.3, 0, ENEMY_POS.z - 0.5);
+      trainer.hasViews = false; trainer.setDir('down');
       return;
     }
     const name = kind === 'boss' ? 'gorvax' : kind === 'rival' ? 'kessa' : 'ghoul_' + ({ Ice: 'ice', Fire: 'fire', Ghoul: 'ghoul' }[e.element] || 'ghoul');
@@ -597,6 +610,7 @@ const Battle = (() => {
     if (frontModel) { frontModel.dispose(); frontModel = null; }
     if (enemyModel) { enemyModel.dispose(); enemyModel = null; }
     if (enemyActor) { enemyActor.remove(); enemyActor = null; }
+    if (trainer) { trainer.remove(); trainer = null; }
     if (playerActor) { playerActor.remove(); playerActor = null; }
     minionActors.forEach((a) => a.remove()); minionActors = [];
     if (shield) { shield.dispose(); shield = null; }
