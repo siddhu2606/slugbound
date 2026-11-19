@@ -135,5 +135,10 @@ const Sound = (() => {
     return muted;
   }
 
+  // sound is decoration: it must never be able to throw and break the game
+  const safe = (f) => function () { try { return f.apply(this, arguments); } catch (e) { console.warn('sound error', e); } };
+  Object.keys(sfx).forEach((k) => { if (typeof sfx[k] === 'function') sfx[k] = safe(sfx[k]); });
+  return { ensure: safe(ensure), sfx, music: safe(music), stopMusic: safe(stopMusic), toggleMute: safe(toggleMute), setSpeed: safe(setSpeed), tone: safe(tone), get muted() { return muted; } };
+  // eslint-disable-next-line no-unreachable
   return { ensure, sfx, music, stopMusic, toggleMute, setSpeed, tone, get muted() { return muted; } };
 })();

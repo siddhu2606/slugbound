@@ -212,7 +212,24 @@ const Game = (() => {
     UI.updateHud(state);
     const dlgEvent = r.event && r.event.lines && r.event.lines.length ? r.event : null;
     if (r.event && r.event.text && r.event.type === 'battle') UI.toast(r.event.text, 'bad');
-    const res = await Battle.run(r, { handle: handleResp, flushCards });
+    let res;
+    try { res = await Battle.run(r, { handle: handleResp, flushCards }); }
+    catch (e) {
+      // the 3D duel broke: tidy up, finish the duel inside the C++ engine so no rule is skipped, and carry on
+      console.error('duel scene failed', e);
+      Battle.abort();
+      UI.toast('The duel scene glitched, so the duel was settled automatically.', 'bad');
+      res = { battle: null };
+      for (let i = 0; i < 80; i++) {
+        let a = await Engine.call('/fire');
+        if (!a.ok) a = await Engine.call('/guard');
+        await handleResp(a);
+        if (a.battle && a.battle.over) { res = a; break; }
+        const t = await Engine.call('/enemyturn'); await handleResp(t);
+        if (t.battle && t.battle.over) { res = t; break; }
+        if (!t.ok && !a.ok) break;
+      }
+    }
     mode = 'explore';
     UI.showHud(true);
     if (res.respawn) { UI.toast('You wake up at the Heartlight in Glowmoss Grotto.', 'gold'); await enterZone(false); }
@@ -253,7 +270,8 @@ const Game = (() => {
   // ---------------------------------------------------------
   //  input
   // ---------------------------------------------------------
-  window.addEventListener('keydown', async (e) => {
+  window.addEventListener('keydown', (e) => { onKey(e).catch((err) => console.error('key handler', err)); });
+  async function onKey(e) {
     if (e.repeat && !DIRS[e.key]) return;
     Sound.ensure();
     const k = e.key;
@@ -282,7 +300,7 @@ const Game = (() => {
     else if (k === 'Tab') toggleLens();
     else if (k === 'h' || k === 'H') { guideOn = !guideOn; UI.toast(guideOn ? 'Direction arrow on (H to hide)' : 'Direction arrow off'); }
     else if (k === 'm' || k === 'M') { Sound.toggleMute(); UI.toast(Sound.muted ? 'Sound off' : 'Sound on'); }
-  });
+  }
   document.addEventListener('click', () => { const a = document.activeElement; if (a && a !== document.body && a.tagName === 'BUTTON') a.blur(); });
   window.addEventListener('keyup', (e) => { const d = DIRS[e.key]; if (d) held = held.filter((x) => x !== d); });
   window.addEventListener('blur', () => (held = []));
@@ -411,6 +429,6 @@ const Game = (() => {
 
   window.addEventListener('error', (e) => { const lt = $('loadText'); if (lt && !$('loading').classList.contains('out')) lt.textContent = 'Error: ' + e.message; });
   boot().catch((e) => { console.error(e); $('loadText').textContent = 'Could not start: ' + e.message; });
-  return { handleResp, get state() { return state; }, get zone() { return zone; }, get mode() { return mode; }, step, interact, refreshZone, loadZone, flushCards };
+  return { runBattle, handleResp, get state() { return state; }, get zone() { return zone; }, get mode() { return mode; }, step, interact, refreshZone, loadZone, flushCards };
 })();
 window.__game = Game;

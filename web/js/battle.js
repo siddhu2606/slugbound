@@ -617,5 +617,13 @@ const Battle = (() => {
     Sound.sfx.blip(); updateHud(cur);
   }
   function confirm() { command(ORDER[sel]); }
-  return { run, command, moveCursor, confirm, active, isBusy: () => busy };
+  // last resort when the 3D duel scene itself breaks: clean everything up so the game is playable again
+  function abort() {
+    try { teardown(); } catch (e) { console.error(e); }
+    ['battleUI'].forEach((id) => $(id) && $(id).classList.add('hidden'));
+    $('iris').classList.remove('on'); $('fade').classList.remove('on');
+    try { World3D.setCamMode('follow'); World3D.camera.fov = fovBefore || World3D.camera.fov; } catch (e) { /* ignore */ }
+    busy = false; cur = null; resolveBattle = null; arena = arena && null;
+  }
+  return { abort, run, command, moveCursor, confirm, active, isBusy: () => busy };
 })();
