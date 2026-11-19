@@ -19,6 +19,8 @@ const World3D = {};
   let camLook = new B.Vector3(0, 0, 0);
   let camMode = 'follow';             // follow, title, battle
   let camSway = 0;
+  const lookAhead = { x: 0, z: 0 };
+  let hitStopT = 0;
   let battleRig = null;
   const tweens = [];
   const matCache = {};
@@ -125,7 +127,7 @@ const World3D = {};
     scene.autoClear = true;
 
     camera = new B.UniversalCamera('cam', new B.Vector3(0, 9, -9), scene);
-    camera.fov = 0.56;
+    camera.fov = 0.46;
     camera.minZ = 0.3;
     camera.maxZ = 140;
 
@@ -212,6 +214,10 @@ const World3D = {};
         float l = dot(col, vec3(0.299, 0.587, 0.114));
         col = mix(vec3(l), col, sat);
         col *= tint;
+        float lum = dot(col, vec3(0.299, 0.587, 0.114));
+        vec3 shadowTone = vec3(0.86, 1.0, 1.12), lightTone = vec3(1.1, 1.02, 0.88);
+        col *= mix(shadowTone, lightTone, smoothstep(0.18, 0.72, lum));
+        col = (col - 0.5) * 1.08 + 0.5;
         col *= 1.0 - smoothstep(0.12, 0.62, r2) * vig;
         col += (h(vUV * 900.0 + time) - 0.5) * grain;
         col += vec3(flash);
@@ -219,25 +225,25 @@ const World3D = {};
       }`;
     tiltPass = new B.PostProcess('tiltH', 'tilt', ['dir', 'focus', 'amount', 'band'], null, 1.0, camera, B.Texture.BILINEAR_SAMPLINGMODE, engine, false, null, B.Engine.TEXTURETYPE_UNSIGNED_BYTE);
     tiltPass.samples = 4;
-    tiltPass.onApply = (e) => { e.setFloat2('dir', 1.0 / engine.getRenderWidth(), 0); e.setFloat('focus', World3D._focus); e.setFloat('amount', World3D._tilt); e.setFloat('band', 0.24); };
+    tiltPass.onApply = (e) => { e.setFloat2('dir', 1.0 / engine.getRenderWidth(), 0); e.setFloat('focus', World3D._focus); e.setFloat('amount', World3D._tilt); e.setFloat('band', 0.16); };
     tiltPass2 = new B.PostProcess('tiltV', 'tilt', ['dir', 'focus', 'amount', 'band'], null, 1.0, camera, B.Texture.BILINEAR_SAMPLINGMODE, engine);
-    tiltPass2.onApply = (e) => { e.setFloat2('dir', 0, 1.0 / engine.getRenderHeight()); e.setFloat('focus', World3D._focus); e.setFloat('amount', World3D._tilt); e.setFloat('band', 0.24); };
+    tiltPass2.onApply = (e) => { e.setFloat2('dir', 0, 1.0 / engine.getRenderHeight()); e.setFloat('focus', World3D._focus); e.setFloat('amount', World3D._tilt); e.setFloat('band', 0.16); };
     gradePass = new B.PostProcess('grade', 'grade', ['time', 'vig', 'grain', 'aberr', 'sat', 'tint', 'flash'], null, 1.0, camera, B.Texture.BILINEAR_SAMPLINGMODE, engine);
     gradePass.onApply = (e) => {
       e.setFloat('time', time % 100); e.setFloat('vig', World3D._vig); e.setFloat('grain', World3D._grain);
       e.setFloat('aberr', World3D._aberr); e.setFloat('sat', World3D._sat); e.setFloat3('tint', World3D._tintR, World3D._tintG, World3D._tintB);
       e.setFloat('flash', World3D._flash);
     };
-    Object.assign(World3D, { _focus: 0.52, _tilt: 2.4, _vig: 0.55, _grain: 0.035, _aberr: 0.012, _sat: 1.18, _tintR: 1, _tintG: 1, _tintB: 1, _flash: 0 });
+    Object.assign(World3D, { _focus: 0.52, _tilt: 4.2, _vig: 0.72, _grain: 0.035, _aberr: 0.012, _sat: 1.18, _tintR: 1, _tintG: 1, _tintB: 1, _flash: 0 });
   }
 
   function applyQuality(q) {
     quality = q;
     const hi = q === 'high', lo = q === 'low';
     engine.setHardwareScalingLevel(lo ? 1.5 : 1);
-    World3D._tilt = lo ? 0 : (hi ? 2.4 : 1.8);
+    World3D._tilt = lo ? 0 : (hi ? 4.2 : 3.2);
     World3D._grain = lo ? 0 : 0.035;
-    World3D._aberr = hi ? 0.014 : 0.004;
+    World3D._aberr = hi ? 0.006 : 0.002;
     glow.intensity = lo ? 0 : (PRESETS[zone ? zone.id : 'grotto'].glow);
     setupShadows();
     if (zone && shadowGen) rootNode.getChildMeshes().forEach((m) => { if (m.metadata && m.metadata.caster) shadowGen.addShadowCaster(m, true); });
@@ -309,218 +315,88 @@ const World3D = {};
   }
   const isFloorish = (ch) => ch === '.' || ch === 'm' || ch === 'T';
 
+  let terr = null;
+  function glowSources() {
+    const P = PRESETS[zone.id], L = [];
+    zone.rows.forEach((row, y) => row.split('').forEach((ch, x) => { if (ch === 'T') L.push({ x, z: -y, color: P.accent, radius: 2.6, strength: 0.42 }); }));
+    const map = { spring: ['#ff8ac8', 3.4, 0.6], altar: ['#ffd86a', 3, 0.5], fusionstone: ['#b070ff', 3.2, 0.5], keepgate: ['#ff3a5a', 3.4, 0.5], boss: ['#ff2a4a', 4.2, 0.5], heartcrystal: ['#ff8ac8', 4, 0.5], wall: ['#ffb040', 2.4, 0.3], mossback: ['#c8ff9a', 2.2, 0.3], rival: ['#7ac4ff', 2.2, 0.3], chest: ['#ffd86a', 1.6, 0.25] };
+    zone.objects.forEach((o) => { const m = map[o.kind]; if (m) L.push({ x: o.x, z: -o.y, color: m[0], radius: m[1], strength: m[2] }); });
+    zone.exits.forEach((e) => L.push({ x: e.x, z: -e.y, color: P.accent, radius: 3.4, strength: 0.55 }));
+    return L;
+  }
   function buildTerrain() {
-    const id = zone.id;
-    const Z = Art.ZONE_COLORS[id];
-    const floorTex = texFromCanvas(Art.floorTexture(id), 'floor' + id, { wrap: true, aniso: 4 });
-    const rockTex = texFromCanvas(Art.rockTexture(id), 'rock' + id, { wrap: true, aniso: 4 });
-    const floorMat = std('floorMat' + id, '#ffffff', { cull: false });
-    if (!floorMat.diffuseTexture) { floorMat.diffuseTexture = floorTex; floorMat.specularColor = hex('#000000'); }
-    const rockMat = std('rockMat' + id, '#ffffff', { cull: false });
-    if (!rockMat.diffuseTexture) rockMat.diffuseTexture = rockTex;
-
-    const noise = Art.makeNoise(16, 77);
-    const gGround = new Geo(), gPit = new Geo(), gRock = new Geo(), gLava = new Geo(), gWater = new Geo(), gIce = new Geo();
-    const up = [0, 1, 0];
-    const tintMoss = [0.55, 1.35, 0.95];
-    const accent = c255(Z.vein);
-    // ----- floor (each tile = 2x2 quads for colour variation)
-    for (let y = 0; y < zone.h; y++) for (let x = 0; x < zone.w; x++) {
-      const ch = effTile(x, y);
-      const o = objAtTile(x, y);
-      const isIceDone = o && o.kind === 'bridge' && o.done;
-      if (!(ch === '.' || ch === 'm' || ch === 'T' || isIceDone)) continue;
-      const cx = x, cz = -y;
-      for (let sy = 0; sy < 2; sy++) for (let sx = 0; sx < 2; sx++) {
-        const x0 = cx - 0.5 + sx * 0.5, z0 = cz - 0.5 + sy * 0.5;
-        const nv = noise((x + sx * 0.5) * 0.7, (y + sy * 0.5) * 0.7);
-        let col = mulc([1, 1, 1], 0.78 + nv * 0.5);
-        if (ch === 'm') col = mixc(col, mulc(tintMoss, 0.9 + nv * 0.3), 0.7);
-        const cs = [col, col, col, col];
-        const u0 = x0 * 0.25, v0 = z0 * 0.25;
-        gGround.quad([x0, 0, z0], [x0 + 0.5, 0, z0], [x0 + 0.5, 0, z0 + 0.5], [x0, 0, z0 + 0.5], cs[0], cs[1], cs[2], cs[3], up, [[u0, v0], [u0 + 0.125, v0], [u0 + 0.125, v0 + 0.125], [u0, v0 + 0.125]]);
-      }
-    }
-    // ----- pits: lava, water, chasm
-    const edges = [[0, -1, 'n'], [0, 1, 's'], [-1, 0, 'w'], [1, 0, 'e']];
-    for (let y = 0; y < zone.h; y++) for (let x = 0; x < zone.w; x++) {
-      const ch = effTile(x, y);
-      if (!isPitChar(ch)) continue;
-      const cx = x, cz = -y;
-      const surf = ch === '~' ? -0.32 : ch === 'w' ? -0.2 : -6;
-      const target = ch === '~' ? gLava : ch === 'w' ? gWater : null;
-      if (target) target.quad([cx - 0.5, surf, cz - 0.5], [cx + 0.5, surf, cz - 0.5], [cx + 0.5, surf, cz + 0.5], [cx - 0.5, surf, cz + 0.5], [1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1], up, [[x * 0.25, -y * 0.25], [x * 0.25 + 0.25, -y * 0.25], [x * 0.25 + 0.25, -y * 0.25 + 0.25], [x * 0.25, -y * 0.25 + 0.25]]);
-      // side faces where this pit meets floor
-      edges.forEach(([dx, dy, dir]) => {
-        const nch = effTile(x + dx, y + dy);
-        if (!isFloorish(nch)) return;
-        const depth = ch === 'g' ? 6 : 0.9;
-        const top = 0, bot = -depth;
-        // edge corners in world coords
-        let p0, p1;
-        if (dir === 'n') { p0 = [cx - 0.5, cz + 0.5]; p1 = [cx + 0.5, cz + 0.5]; }
-        else if (dir === 's') { p0 = [cx - 0.5, cz - 0.5]; p1 = [cx + 0.5, cz - 0.5]; }
-        else if (dir === 'w') { p0 = [cx - 0.5, cz - 0.5]; p1 = [cx - 0.5, cz + 0.5]; }
-        else { p0 = [cx + 0.5, cz - 0.5]; p1 = [cx + 0.5, cz + 0.5]; }
-        const hint = [-dx, 0, dy];
-        const cTop = ch === 'g' ? [0.9, 0.9, 0.95] : [0.8, 0.7, 0.7];
-        const cBot = ch === 'g' ? [0.03, 0.02, 0.05] : (ch === '~' ? [1.0, 0.45, 0.2] : [0.15, 0.3, 0.45]);
-        gPit.quad([p0[0], top, p0[1]], [p1[0], top, p1[1]], [p1[0], bot, p1[1]], [p0[0], bot, p0[1]], cTop, cTop, cBot, cBot, hint, [[p0[0] * 0.3, 0], [p1[0] * 0.3 + p1[1] * 0.3, 0], [p1[0] * 0.3 + p1[1] * 0.3, depth * 0.3], [p0[0] * 0.3, depth * 0.3]]);
-      });
-    }
-    // ----- rock walls: faceted prisms
-    const r = Art.rng(4242 + id.length);
-    const wallCol = (k) => mulc(c255(Z.rock2), k);
-    function prism(cx, cz, rad, h, sides, seed) {
-      const rr = Art.rng(seed);
-      const bot = [], top = [];
-      for (let i = 0; i < sides; i++) {
-        const a = (i / sides) * Math.PI * 2 + rr() * 0.4;
-        const rb = rad * (0.9 + rr() * 0.3), rt = rb * (0.62 + rr() * 0.22);
-        bot.push([cx + Math.cos(a) * rb, -0.4, cz + Math.sin(a) * rb]);
-        top.push([cx + Math.cos(a + 0.12) * rt, h * (0.86 + rr() * 0.16), cz + Math.sin(a + 0.12) * rt]);
-      }
-      const apex = [cx + (rr() - 0.5) * 0.2, h + 0.08 + rr() * 0.2, cz + (rr() - 0.5) * 0.2];
-      for (let i = 0; i < sides; i++) {
-        const j = (i + 1) % sides;
-        const cb = wallCol(0.45 + rr() * 0.18), ct = wallCol(1.0 + rr() * 0.4);
-        const hint = [(bot[i][0] + bot[j][0]) / 2 - cx, 0, (bot[i][2] + bot[j][2]) / 2 - cz];
-        gRock.quad(bot[i], bot[j], top[j], top[i], cb, cb, ct, ct, hint, [[i * 0.3, 0], [i * 0.3 + 0.3, 0], [i * 0.3 + 0.3, h * 0.4], [i * 0.3, h * 0.4]]);
-        gRock.tri(top[i], top[j], apex, ct, ct, mulc(ct, 1.25), up);
-      }
-    }
-    const openNear = (x, y) => {
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const ch = effTile(x + dx, y + dy); if (ch !== '#' && ch !== 'T') return true; }
-      return false;
-    };
-    const pad = 6;
-    for (let y = -pad; y < zone.h; y++) for (let x = -pad; x < zone.w + pad; x++) {
-      const ch = tileAt(x, y);
-      const inside = x >= 0 && y >= 0 && x < zone.w && y < zone.h;
-      if (ch !== '#') continue;
-      const near = inside && openNear(x, y);
-      const ring = !inside || x === 0 || y === 0 || x === zone.w - 1 || y === zone.h - 1;
-      if (!near && !ring) continue;
-      // walls south of open floor are low so the camera can see over them
-      const northOpen = tileAt(x, y - 1) !== '#' && inside;
-      let h = northOpen ? 0.7 + r() * 0.5 : 2.4 + r() * 1.6;
-      if (!inside) h = 3.6 + r() * 2.6 + (Math.abs(x - zone.w / 2) / zone.w) * 1.2;
-      if (zone.id === 'hollows' && inside && !northOpen) h += 0.5;
-      prism(x + (r() - 0.5) * 0.25, -y + (r() - 0.5) * 0.25, 0.62, h, 7, Math.floor(r() * 99999));
-      if (!northOpen && inside && r() > 0.35) prism(x + (r() - 0.5) * 0.5, -y + (r() - 0.5) * 0.5, 0.44, h * 0.7 + 0.4, 6, Math.floor(r() * 99999));
-    }
-    // ----- big enclosing back wall silhouette (so no void shows behind the cave)
-    for (let x = -pad; x < zone.w + pad; x += 2) prism(x + r(), pad + 1 + r() * 2, 1.4, 6 + r() * 3, 6, Math.floor(r() * 99999));
-    for (let y = -pad; y < zone.h; y += 2) {
-      prism(-pad + r(), -y, 1.4, 6 + r() * 3, 6, Math.floor(r() * 99999));
-      prism(zone.w + pad - 1 + r(), -y, 1.4, 6 + r() * 3, 6, Math.floor(r() * 99999));
-    }
-
-    const mGround = gGround.build('ground', floorMat);
-    const mPit = gPit.build('pit', rockMat);
-    const mRock = gRock.build('rock', rockMat);
-    [mGround, mPit, mRock].forEach((m) => { if (m) { m.parent = rootNode; terrainNodes.push(m); } });
-    if (mRock) mRock.metadata = { caster: true };
-    if (mRock && shadowGen) shadowGen.addShadowCaster(mRock);
-
-    // lava / water surfaces
-    if (gLava.pos.length) {
-      lavaTex = texFromCanvas(Art.lavaTexture(), 'lava', { wrap: true });
-      const lm = new B.StandardMaterial('lavaMat', scene);
-      lm.backFaceCulling = false; lm.diffuseTexture = lavaTex; lm.emissiveTexture = lavaTex; lm.disableLighting = true; lm.emissiveColor = new B.Color3(1.3, 0.9, 0.7);
-      const m = gLava.build('lava', lm, false); m.parent = rootNode; terrainNodes.push(m);
-      animTex.push({ t: lavaTex, du: 0.012, dv: 0.006 });
-      // heat shimmer light
-      if (!rootNode._lavaLight) {
-        const pl = new B.PointLight('lavaLight', new B.Vector3(0, 1.2, 0), scene);
-        const first = zone.rows.map((row, yy) => [row.indexOf('~'), yy]).find((a) => a[0] >= 0);
-        pl.position = new B.Vector3(first[0], 1.2, -first[1] - 3);
-        pl.diffuse = hex('#ff7a2a'); pl.intensity = 1.6; pl.range = 10; pl.parent = rootNode;
-        rootNode._lavaLight = pl;
-      }
-    }
-    if (gWater.pos.length) {
-      waterTex = texFromCanvas(Art.waterTexture(id === 'hollows'), 'water' + id, { wrap: true });
-      const wm = new B.StandardMaterial('waterMat', scene);
-      wm.backFaceCulling = false; wm.diffuseTexture = waterTex; wm.emissiveTexture = waterTex; wm.emissiveColor = new B.Color3(0.45, 0.6, 0.7); wm.alpha = 0.88; wm.specularColor = new B.Color3(0.6, 0.8, 1); wm.specularPower = 64;
-      const m = gWater.build('water', wm, false); m.parent = rootNode; terrainNodes.push(m);
-      animTex.push({ t: waterTex, du: -0.01, dv: 0.008 });
-    }
-    // chasm: dark floor + drifting mist layers
-    const hasChasm = zone.rows.some((row, y) => row.split('').some((ch, x) => effTile(x, y) === 'g'));
-    if (hasChasm) {
-      const pm = B.MeshBuilder.CreatePlane('chasmFloor', { width: 80, height: 80 }, scene);
-      pm.rotation.x = Math.PI / 2; pm.position = new B.Vector3(zone.w / 2, -6.2, -zone.h / 2);
-      const m = std('chasmMat' + id, '#000000', { noLight: true }); m.emissiveColor = hex(PRESETS[id].fog).scale(0.6);
-      pm.material = m; pm.parent = rootNode; terrainNodes.push(pm);
-      const mistTex = texFromCanvas(Art2.mist(), 'mist', { alpha: true, wrap: true });
-      [-1.4, -3.2].forEach((yy, i) => {
-        const mp = B.MeshBuilder.CreatePlane('mist' + i, { width: 40, height: 40 }, scene);
-        mp.rotation.x = Math.PI / 2; mp.position = new B.Vector3(zone.w / 2, yy, -zone.h / 2);
-        const mm = new B.StandardMaterial('mistMat' + i + id, scene);
-        mm.diffuseTexture = mistTex; mm.opacityTexture = mistTex; mm.emissiveColor = hex(PRESETS[id].accent).scale(0.4); mm.alpha = 0.42; mm.disableLighting = true;
-        mistTex.uScale = 2; mistTex.vScale = 2;
-        mp.material = mm; mp.parent = rootNode; mp.isPickable = false; terrainNodes.push(mp);
-        animTex.push({ t: mistTex, du: 0.004 * (i ? -1 : 1), dv: 0.002 });
-      });
-    }
-    // ice that replaces the lava/water where a bridge is done
+    terrainNodes.forEach((m) => m && m.dispose());
+    terrainNodes = [];
+    terr = Terrain.build(zone, { scene, root: rootNode, effTile, objects: zone.objects, lights: glowSources(), texFromCanvas, animTex });
+    terrainNodes = terr.meshes.slice();
+    // ice that bridges lava or water once Frostmaw has frozen it
     zone.objects.filter((o) => o.kind === 'bridge' && o.done).forEach((o) => {
-      const slab = B.MeshBuilder.CreateBox('iceSlab' + o.id, { width: 1.02, height: 0.28, depth: 1.02 }, scene);
-      slab.position = new B.Vector3(o.x, -0.1, -o.y);
-      const im = std('iceMat', '#bfe8ff', { alpha: 0.92, spec: '#ffffff' });
-      im.emissiveColor = hex('#6ab8e8'); im.diffuseTexture = texFromCanvas(Art.iceTexture(), 'ice', { wrap: true });
+      const slab = B.MeshBuilder.CreateBox('iceSlab' + o.id, { width: 1.0, height: 0.1, depth: 1.0 }, scene);
+      slab.position = new B.Vector3(o.x, 0.03, -o.y);
+      const im = std('iceMat', '#bfe8ff', { alpha: 0.9, spec: '#ffffff' });
+      im.emissiveColor = hex('#4a98c8'); im.diffuseTexture = texFromCanvas(Art.iceTexture(), 'ice', { wrap: true });
       slab.material = im; slab.parent = rootNode; terrainNodes.push(slab);
     });
   }
+  const groundY = (x, z) => (terr ? terr.heightAt(x, z) : 0);
 
   // =========================================================
-  //  decorations on floors (billboard plants)
+  //  decoration: noise-driven scatter that follows the smooth fields, not the tiles
   // =========================================================
-  let decorMgrs = [];
+  let decorMgrs = [], decorNodes = [];
   function buildDecor() {
-    decorMgrs.forEach((m) => m.dispose());
-    decorMgrs = [];
-    const P = PRESETS[zone.id];
-    const mgrs = P.deco.map((k) => {
-      const m = new B.SpriteManager('deco' + k, Art2.deco(k).toDataURL(), 700, 128, scene);
-      m.isPickable = false; m.fogEnabled = true;
-      decorMgrs.push(m);
-      return m;
+    decorMgrs.forEach((m) => m.dispose()); decorMgrs = [];
+    decorNodes.forEach((m) => m.dispose()); decorNodes = [];
+    const P = PRESETS[zone.id], id = zone.id;
+    const mgrs = {};
+    P.deco.forEach((k) => {
+      const m = new B.SpriteManager('deco' + k, Art.pixelize(Art2.deco(k), 32, 32).toDataURL(), 900, 32, scene);
+      m.isPickable = false; m.fogEnabled = true; m.texture.updateSamplingMode(B.Texture.NEAREST_SAMPLINGMODE); decorMgrs.push(m); mgrs[k] = m;
     });
-    const r = Art.rng(555 + zone.id.length);
-    const blocked = (x, y) => zone.objects.some((o) => o.kind !== 'patch' && o.x === x && o.y === y) || zone.exits.some((e) => e.x === x && e.y === y);
-    for (let y = 0; y < zone.h; y++) for (let x = 0; x < zone.w; x++) {
-      const ch = tileAt(x, y);
-      if (ch !== '.' && ch !== 'm') continue;
-      if (blocked(x, y)) continue;
-      let n = 0;
-      if (ch === 'm') n = 3;
-      else {
-        let nearWall = false;
-        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (tileAt(x + dx, y + dy) === '#') nearWall = true;
-        if (nearWall && r() < 0.5) n = 1 + (r() < 0.3 ? 1 : 0);
-        else if (r() < 0.07) n = 1;
-      }
-      for (let i = 0; i < n; i++) {
-        const mi = ch === 'm' ? 0 : Math.floor(r() * mgrs.length);
-        const s = new B.Sprite('d', mgrs[mi]);
-        const size = (ch === 'm' ? 0.55 : 0.5) + r() * 0.45;
-        s.position = new B.Vector3(x + (r() - 0.5) * 0.85, size * 0.42, -y + (r() - 0.5) * 0.85);
-        s.width = size; s.height = size;
-        if (r() < 0.5) s.angle = (r() - 0.5) * 0.4;
-        s.color = new B.Color4(1, 1, 1, 1);
-        if (ch === 'm') { const k = 0.8 + r() * 0.5; s.color = new B.Color4(k, k, k, 1); }
-      }
+    const near = (x, y, d) => zone.objects.some((o) => o.kind !== 'patch' && Math.abs(o.x - x) < d && Math.abs(o.y - y) < d) || zone.exits.some((e) => Math.abs(e.x - x) < d && Math.abs(e.y - y) < d);
+    const r = Art.rng(555 + id.length);
+    const pts = terr.scatter(0.4, (f) => {
+      if (f.pit > 0.18 || f.rock > 0.62) return null;
+      if (f.moss > 0.3 && f.r < 0.5) return 'moss';
+      if (f.wet > 0.25 && f.r < 0.3) return 'wet';
+      if (f.rock > 0.08 && f.r < 0.4) return 'edge';
+      if (f.n > 0.52 && f.r < 0.16) return 'open';
+      return null;
+    });
+    const kinds = P.deco;
+    pts.forEach((p) => {
+      if (near(p.x, p.y, 0.55) || p.kind === 'edge') return;
+      const k = p.kind === 'moss' ? kinds[0] : p.kind === 'wet' ? kinds[Math.min(1, kinds.length - 1)] : kinds[Math.floor(r() * kinds.length)];
+      const s = new B.Sprite('d', mgrs[k]);
+      const size = (p.kind === 'moss' ? 0.5 : 0.42) + r() * 0.5;
+      s.position = new B.Vector3(p.x, p.h + size * 0.42, p.z); s.width = size; s.height = size;
+      const k2 = 0.78 + r() * 0.4; s.color = new B.Color4(k2, k2, k2, 1);
+    });
+    // pebbles and boulders along the cliff foot, random scale and overlap
+    const mk = (name) => { const m = B.MeshBuilder.CreatePolyhedron(name, { type: 3, size: 0.5 }, scene); m.convertToFlatShadedMesh(); m.isVisible = false; m.parent = rootNode; decorNodes.push(m); return m; };
+    const rockMat = std('boulderMat' + id, '#ffffff', {});
+    if (!rockMat.diffuseTexture) { rockMat.diffuseTexture = texFromCanvas(Art.rockTexture(id), 'rock' + id, { wrap: true }); rockMat.emissiveColor = new B.Color3(0.05, 0.06, 0.09); }
+    const masters = [mk('b0'), mk('b1'), mk('b2')];
+    masters.forEach((m) => { m.material = rockMat; });
+    pts.forEach((p) => {
+      if (p.kind !== 'edge' || near(p.x, p.y, 0.7)) return;
+      const big = p.f.rock > 0.3 && r() < 0.35, sz = big ? 0.5 + r() * 0.9 : 0.07 + r() * 0.16;
+      const inst = masters[Math.floor(r() * 3)].createInstance('bd'); inst.parent = rootNode; inst.position.set(p.x, p.h + sz * 0.15, p.z);
+      inst.scaling.set(sz * (0.8 + r() * 0.6), sz * (0.55 + r() * 0.5), sz * (0.8 + r() * 0.6)); inst.rotation.set(r() * 0.5, r() * 6.28, r() * 0.5); inst.isPickable = false;
+      decorNodes.push(inst);
+    });
+    // large dark foreground rocks near the camera edge (the tilt-shift blurs them)
+    for (let i = 0; i < 9; i++) {
+      const x = -3 + i * (zone.w + 6) / 8 + (r() - 0.5) * 2, z = -(zone.h + 2.4 + r() * 3), sz = 1.2 + r() * 1.8;
+      const inst = masters[i % 3].createInstance('fg'); inst.parent = rootNode; inst.position.set(x, terr.heightAt(x, z) + sz * 0.2, z); inst.scaling.set(sz * 1.3, sz * 0.9, sz); inst.rotation.y = r() * 6; inst.isPickable = false;
+      decorNodes.push(inst);
     }
-    // glowing pools of light on the moss
-    zone.rows.forEach((row, y) => row.split('').forEach((ch, x) => { if (ch === 'm' && (x + y) % 2 === 0) lightPool(x, -y, P.accent, 1.9, 0.16); }));
     buildProps();
   }
 
   function lightPool(x, z, color, size, alpha) {
     const p = B.MeshBuilder.CreatePlane('pool', { size }, scene);
-    p.rotation.x = Math.PI / 2; p.position = new B.Vector3(x, 0.025, z);
+    p.rotation.x = Math.PI / 2; p.position = new B.Vector3(x, 0.07, z);
     const m = std('pool' + color + alpha, '#000000', { noLight: true, add: true });
     m.emissiveColor = hex(color); m.opacityTexture = texFromCanvas(Art.glowDot(), 'dot', { alpha: true }); m.alpha = alpha;
     p.material = m; p.parent = rootNode; p.isPickable = false;
@@ -557,7 +433,7 @@ const World3D = {};
     const tiles = [];
     zone.rows.forEach((row, y) => row.split('').forEach((ch, x) => { if (ch === 'T') tiles.push([x, y]); }));
     tiles.forEach(([x, y]) => {
-      const root = new B.TransformNode('prop', scene); root.parent = rootNode; root.position = new B.Vector3(x, 0, -y);
+      const root = new B.TransformNode('prop', scene); root.parent = rootNode; root.position = new B.Vector3(x + (r() - 0.5) * 0.22, groundY(x, -y), -y + (r() - 0.5) * 0.22); root.rotation.y = r() * 6.28; root.scaling.setAll(0.88 + r() * 0.5);
       const add = (m, castShadow = true) => { m.parent = root; m.isPickable = false; if (castShadow) m.metadata = { caster: true }; return m; };
       if (kind === 'crystal') {
         const n = 4 + Math.floor(r() * 3);
@@ -618,14 +494,14 @@ const World3D = {};
   //  sprites and actors
   // =========================================================
   const spriteMats = {};
-  function spriteMat(name, view) {
-    const key = name + ':' + view;
+  function spriteMat(name, view, frame) {
+    const key = name + ':' + view + ':' + (frame || 0);
     if (spriteMats[key]) return spriteMats[key];
-    const c = Art.sprite(name, view);
-    const t = texFromCanvas(c, 'spr' + key, { alpha: true, aniso: 4 });
+    const c = Art.sprite(name, view, frame || 0);
+    const t = texFromCanvas(c, 'spr' + key, { alpha: true, noMip: true, sampling: B.Texture.NEAREST_SAMPLINGMODE });
     const m = new B.StandardMaterial('spr' + key, scene);
-    m.diffuseTexture = t; m.useAlphaFromDiffuseTexture = true; m.transparencyMode = B.Material.MATERIAL_ALPHATEST; m.alphaCutOff = 0.45;
-    m.specularColor = new B.Color3(0, 0, 0); m.emissiveColor = new B.Color3(0.26, 0.26, 0.3); m.backFaceCulling = false; m.maxSimultaneousLights = 6;
+    m.diffuseTexture = t; m.useAlphaFromDiffuseTexture = true; m.transparencyMode = B.Material.MATERIAL_ALPHATEST; m.alphaCutOff = 0.5;
+    m.specularColor = new B.Color3(0, 0, 0); m.emissiveColor = new B.Color3(0.3, 0.3, 0.34); m.backFaceCulling = false; m.maxSimultaneousLights = 6;
     spriteMats[key] = m;
     return m;
   }
@@ -640,7 +516,7 @@ const World3D = {};
       this.plane = B.MeshBuilder.CreatePlane('spr_' + name, { width: this.w, height: this.h }, scene);
       this.plane.parent = this.node; this.plane.position.y = this.h / 2 + this.float;
       this.plane.billboardMode = B.Mesh.BILLBOARDMODE_Y;
-      this.plane.material = spriteMat(name, 'front'); this.plane.isPickable = false;
+      this.plane.material = spriteMat(name, 'front', 0); this.plane.isPickable = false; this.view = 'front'; this.frame = 0;
       this.plane.metadata = { caster: true };
       this.hasViews = ['kai', 'kessa'].includes(name);
       this.blob = B.MeshBuilder.CreatePlane('blob', { size: this.w * 1.25 }, scene);
@@ -660,8 +536,8 @@ const World3D = {};
     setDir(d) {
       this.dir = d;
       if (!this.hasViews) { this.plane.scaling.x = d === 'left' ? -1 : 1; return; }
-      const view = d === 'up' ? 'back' : d === 'down' ? 'front' : 'side';
-      this.plane.material = spriteMat(this.name, view);
+      this.view = d === 'up' ? 'back' : d === 'down' ? 'front' : 'side';
+      this.plane.material = spriteMat(this.name, this.view, this.frame);
       this.plane.scaling.x = d === 'left' ? -1 : 1;
     }
     setPos(x, y) { this.node.position.set(x, 0, -y); }
@@ -671,9 +547,13 @@ const World3D = {};
       let sy = 1 + bob * 0.012, sx = 1 - bob * 0.008;
       if (this.walking) {
         this.walk += dt * 14;
+        if (this.hasViews) { const f = 1 + (Math.floor(this.walk / 2.2) % 2); if (f !== this.frame) { this.frame = f; this.plane.material = spriteMat(this.name, this.view, f); } }
+        if (this.hasViews) { const f = 1 + (Math.floor(this.walk / 2.2) % 2); if (f !== this.frame) { this.frame = f; this.plane.material = spriteMat(this.name, this.view, f); } }
         yOff += Math.abs(Math.sin(this.walk)) * 0.11;
         sy = 1 + Math.sin(this.walk * 2) * 0.035; sx = 1 - Math.sin(this.walk * 2) * 0.03;
       }
+      if (!this.walking && this.frame && this.hasViews) { this.frame = 0; this.plane.material = spriteMat(this.name, this.view, 0); }
+      if (!this.walking && this.frame && this.hasViews) { this.frame = 0; this.plane.material = spriteMat(this.name, this.view, 0); }
       if (this.hop > 0) { this.hop -= dt * 3; yOff += Math.sin(Math.max(0, this.hop) * Math.PI) * 0.45; }
       this.plane.position.y = this.h / 2 + this.float + yOff;
       this.plane.scaling.y = sy; this.plane.scaling.x = (this.dir === 'left' ? -1 : 1) * sx;
@@ -704,7 +584,7 @@ const World3D = {};
 
   function buildObject(o) {
     if (o.kind === 'patch') return;
-    const root = new B.TransformNode('obj_' + o.id, scene); root.parent = rootNode; root.position = new B.Vector3(o.x, 0, -o.y);
+    const root = new B.TransformNode('obj_' + o.id, scene); root.parent = rootNode; root.position = new B.Vector3(o.x, groundY(o.x, -o.y), -o.y);
     const entry = { data: o, root, parts: {}, update: null, actor: null };
     objs[o.id] = entry;
     const add = (m, caster = true) => { m.parent = root; m.isPickable = false; if (caster) m.metadata = { caster: true }; return m; };
@@ -915,7 +795,8 @@ const World3D = {};
   //  per-frame update
   // =========================================================
   function update() {
-    const dt = Math.min(0.05, engine.getDeltaTime() / 1000);
+    let dt = Math.min(0.05, engine.getDeltaTime() / 1000);
+    if (hitStopT > 0) { hitStopT -= engine.getDeltaTime() / 1000; dt = 0; }
     time += dt;
     for (let i = tweens.length - 1; i >= 0; i--) {
       const tw = tweens[i];
@@ -930,8 +811,11 @@ const World3D = {};
     shafts.forEach((s) => { s.m.material.alpha = 0.35 + Math.sin(time * 0.6 + s.phase) * 0.15; });
     if (player && camMode === 'follow') {
       const target = player.node.position;
-      camTarget.x += (target.x - camTarget.x) * Math.min(1, dt * 6);
-      camTarget.z += (target.z - camTarget.z) * Math.min(1, dt * 6);
+      const dirv = { up: [0, 1], down: [0, -1], left: [-1, 0], right: [1, 0] }[player.dir] || [0, 0];
+      lookAhead.x += (dirv[0] * 1.1 - lookAhead.x) * Math.min(1, dt * 1.6); lookAhead.z += (dirv[1] * 1.1 - lookAhead.z) * Math.min(1, dt * 1.6);
+      const tx = Math.min(zone.w + 1, Math.max(-1, target.x + lookAhead.x)), tz = Math.min(1, Math.max(-(zone.h + 1), target.z + lookAhead.z));
+      camTarget.x += (tx - camTarget.x) * Math.min(1, dt * 5);
+      camTarget.z += (tz - camTarget.z) * Math.min(1, dt * 5);
       camTarget.y = 0;
       lantern.position.set(target.x, 2.2, target.z - 0.8);
       lantern.intensity = 0.95 + Math.sin(time * 5) * 0.04;
@@ -939,7 +823,7 @@ const World3D = {};
     }
     if (camMode === 'follow') {
       const sway = Math.sin(time * 0.3) * 0.02;
-      const dist = 12.5, pitch = 0.93;
+      const dist = 17, pitch = 0.74;
       const px = camTarget.x + Math.sin(sway) * dist * 0.4;
       camera.position.set(px, camTarget.y + Math.sin(pitch) * dist + 0.4, camTarget.z - Math.cos(pitch) * dist);
       camLook.set(camTarget.x, 0.55, camTarget.z + 0.3);
@@ -984,7 +868,7 @@ const World3D = {};
     get player() { return player; }, get scene() { return scene; }, get engine() { return engine; }, get camera() { return camera; }, get zone() { return zone; },
     get rootNode() { return rootNode; }, get shadowGen() { return shadowGen; }, get glow() { return glow; }, get sun() { return sun; }, get hemi() { return hemi; }, get lantern() { return lantern; },
     get objects() { return objs; }, get time() { return time; }, get PRESETS() { return PRESETS; }, get quality() { return quality; },
-    setCamMode(m) { camMode = m; }, get camMode() { return camMode; }, hooks, flame, particleSystems: () => particleSystems, applyPreset,
+    hitStop(ms) { hitStopT = ms / 1000; }, setCamMode(m) { camMode = m; }, get camMode() { return camMode; }, hooks, flame, particleSystems: () => particleSystems, applyPreset,
     pushParticles(ps) { particleSystems.push(ps); }, hexColor: hex, tweens,
   };
   Object.defineProperties(World3D, Object.getOwnPropertyDescriptors(API));

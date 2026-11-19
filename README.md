@@ -51,6 +51,19 @@ Needs only `g++` (C++17) for the engine. The browser part is plain JavaScript, w
 | `Esc` | menu: save, load, quality (Low / Medium / High), sound |
 | `1`-`5` | in a duel: fire, swap, guard, moss, run |
 
+## The look: HD-2D
+
+The frontend was rebuilt to read like an HD-2D (Octopath Traveler style) scene: **pixel-art sprites standing in a lit, blurred-edged 3D diorama**.
+
+* **One continuous landscape.** The engine's ASCII tile grid is *logic only*. `web/js/terrain.js` samples it into scalar fields (rock, lava, water, chasm, moss), warps them with noise, blurs them, and builds **one smooth heightfield mesh** (terraced cliffs, sloped banks) plus **one baked ground texture** (dirt / moss / wet stone / crystal dust / strata rock blended with ordered dithering, ambient occlusion in corners, and light bounce from crystals and lava). No tile edge, seam or rectangular pit is ever drawn, and the map is surrounded by cliffs and decorative ground that fade into fog. Collision stays exactly as C++ says.
+* **Water and lava** are alpha-masked surfaces cut by the same smooth fields, so the shoreline is irregular, with foam or a glowing rim and gently scrolling flow.
+* **Pixel sprites.** Characters, enemies and slugs are painted procedurally, then reduced to real pixel art (hard alpha, small palette, 1px outline, nearest-neighbour filtering). The player has 4-direction walk frames. Sprites receive light and cast shadows on the ground.
+* **Camera and post-FX:** narrow field of view, look-ahead and soft bounds; tilt-shift depth of field (sharp band, blurred top and bottom), glow/bloom on emissives, light shafts, split-tone colour grade (warm highlights, teal shadows), vignette, film grain and edge-only chromatic aberration. All of it scales with the Low / Medium / High setting.
+* **UI:** JRPG windows (indigo gradient, thin light-and-gold double border, square corners), Cinzel and Pixelify Sans fonts, pixel-art icons instead of emoji, a hand cursor, an Octopath-style battle layout (command list, turn-order strip, floating enemy plate that reveals weaknesses when you hit them, outlined damage numbers, iris wipe into battle, hit-stop on impacts).
+* **Art licence:** everything is generated in code. No third-party or copyrighted assets.
+
+Notes: the colour grade is a procedural split-tone (no LUT image). Sprites face the camera as billboards (no extra lean).
+
 ## The game
 
 * **4 zones:** Glowmoss Grotto (tutorial), Crystal Hollows, Magma Vein, Gorvax's Keep. About 12 to 15 minutes.

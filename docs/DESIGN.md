@@ -727,3 +727,14 @@ Marks come mainly from the C++ design and viva answers. Graphics get attention, 
 2. Write the **C++ class skeleton** (diamond, `Slug`, `Interactable`, templates, exceptions) in the simple course style
 3. Draw the **UML** from Section 6 in a diagramming tool, with full signatures
 4. Write the **week-by-week plan** with named owners
+
+
+---
+
+## Decisions made during the HD-2D rework
+
+* Ground is **baked into one texture** (CPU, ordered dither) instead of a runtime splat shader. This keeps Babylon's standard lighting and shadows, and still gives world-space, tile-free blending.
+* Cliffs are part of **one displaced heightfield** (terraced), with boulders as instanced extras, instead of separate prism meshes.
+* Slugs in battle are now **pixel sprites** (same direction as the characters) instead of 3D toon models, so the whole game has one consistent art style.
+* Colour grade is a **procedural split-tone** in the final post pass rather than a LUT texture.
+* Gameplay, the JSON API and the C++ engine are unchanged.

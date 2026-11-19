@@ -252,6 +252,9 @@ const Game = (() => {
     if (UI.cardOpen()) { if (['e', 'E', 'Enter', ' ', 'Escape'].includes(k)) UI.closeCard(); return; }
     if (UI.dialogOpen()) { if (['e', 'E', 'Enter', ' '].includes(k)) UI.dialogAdvance(); return; }
     if (mode === 'battle') {
+      if (k === 'ArrowUp' || k === 'w' || k === 'W') Battle.moveCursor(-1);
+      if (k === 'ArrowDown' || k === 's' || k === 'S') Battle.moveCursor(1);
+      if (k === 'Enter' || k === 'e' || k === 'E' || k === ' ') Battle.confirm();
       if (k >= '1' && k <= '5') Battle.command(['fire', 'swap', 'guard', 'moss', 'run'][Number(k) - 1]);
       if (k === 'Tab') toggleLens();
       if (k === 'm' || k === 'M') Sound.toggleMute();

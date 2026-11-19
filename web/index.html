@@ -7,7 +7,7 @@
 <meta name="description" content="Slugbound: a 2.5D HD-2D exploration-and-duel game. A C++ engine runs every rule; Babylon.js makes it beautiful.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='38' r='22' fill='%23ff7a2a'/%3E%3Ccircle cx='24' cy='34' r='6' fill='white'/%3E%3Ccircle cx='40' cy='34' r='6' fill='white'/%3E%3Ccircle cx='25' cy='35' r='3' fill='%23160d26'/%3E%3Ccircle cx='41' cy='35' r='3' fill='%23160d26'/%3E%3Cpath d='M22 14q4 10 10 4q6 6 10-4q-2 14-10 14t-10-14z' fill='%23ffd23f'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Pixelify+Sans:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -21,8 +21,8 @@
   <div id="zoneBanner"></div>
   <div id="objective"><span class="obj-label">OBJECTIVE</span><span id="objText"></span><span id="objCount"></span></div>
   <div id="statsPanel" class="panel">
-    <div class="stat-row"><span class="stat-ico">❤</span><div class="bar hp"><i id="hudHp"></i></div><b id="hudHpTxt"></b></div>
-    <div class="stat-row small"><span class="chip">🔫 <b id="hudAmmo"></b></span><span class="chip">🌿 <b id="hudMoss"></b></span><span class="chip">🗝 <b id="hudKeys"></b>/3</span></div>
+    <div class="stat-row"><img class="ico" data-ico="heart" alt=""><div class="bar hp"><i id="hudHp"></i></div><b id="hudHpTxt"></b></div>
+    <div class="stat-row small"><span class="chip"><img class="ico" data-ico="ammo" alt=""> <b id="hudAmmo"></b></span><span class="chip"><img class="ico" data-ico="moss" alt=""> <b id="hudMoss"></b></span><span class="chip"><img class="ico" data-ico="key" alt=""> <b id="hudKeys"></b>/3</span></div>
   </div>
   <div id="queueBar" class="panel"><div class="q-label">BLASTER <small>queue&lt;Slug*&gt;</small></div><div id="queueSlots"></div></div>
   <div id="keyHints">
@@ -43,7 +43,7 @@
   <div class="dlg-box">
     <div class="dlg-name" id="dlgName"></div>
     <div class="dlg-text" id="dlgText"></div>
-    <div class="dlg-next">▼ <kbd>E</kbd></div>
+    <div class="dlg-next"><img class="ico" data-ico="down" alt=""></div>
   </div>
 </div>
 
@@ -58,7 +58,7 @@
     <div id="bossInfo" class="boss-info hidden"></div>
   </div>
   <div id="queuePanel" class="panel">
-    <div class="q-label">FIRE ORDER</div>
+    <div class="q-label">TURN ORDER</div>
     <div id="battleQueue"></div>
     <div class="q-foot">front fires, then re-queues at the back</div>
   </div>
@@ -66,16 +66,16 @@
     <div class="plate-top"><span id="plName"></span><span class="lv" id="plLv"></span><span class="elem" id="plElem"></span></div>
     <div class="bar-wrap"><span class="hp-tag">HP</span><div class="bar big hp"><i id="plHp"></i></div><b id="plHpTxt"></b></div>
     <div class="bar xp"><i id="plXp"></i></div>
-    <div class="slinger-row"><span>🧑 <b id="slHp"></b></span><span>🔫 <b id="slAmmo"></b></span><span>🌿 <b id="slMoss"></b></span><span id="slShield" class="shield hidden">🛡 <b></b></span><span id="slGuard" class="guard hidden">GUARD</span></div>
+    <div class="slinger-row"><span><img class="ico" data-ico="heart" alt=""> <b id="slHp"></b></span><span><img class="ico" data-ico="ammo" alt=""> <b id="slAmmo"></b></span><span><img class="ico" data-ico="moss" alt=""> <b id="slMoss"></b></span><span id="slShield" class="shield hidden"><img class="ico" data-ico="shield" alt=""> <b></b></span><span id="slGuard" class="guard hidden">GUARD</span></div>
   </div>
   <div id="msgBox"><div id="msgText"></div></div>
   <div id="turnBanner"></div>
   <div id="commands">
-    <button class="cmd fire" data-cmd="fire"><kbd>1</kbd><span>FIRE</span><small>Slug* → attack()</small></button>
-    <button class="cmd swap" data-cmd="swap"><kbd>2</kbd><span>SWAP</span><small>queue rotates</small></button>
-    <button class="cmd guard" data-cmd="guard"><kbd>3</kbd><span>GUARD</span><small>halve next hit</small></button>
-    <button class="cmd moss" data-cmd="moss"><kbd>4</kbd><span>MOSS</span><small>heal front slug</small></button>
-    <button class="cmd run" data-cmd="run"><kbd>5</kbd><span>RUN</span><small>wild only</small></button>
+    <button class="cmd fire" data-cmd="fire"><img class="cur" data-ico="hand" alt=""><span>Fire</span><small>Slug* attack()</small><kbd>1</kbd></button>
+    <button class="cmd swap" data-cmd="swap"><img class="cur" data-ico="hand" alt=""><span>Swap</span><small>queue rotates</small><kbd>2</kbd></button>
+    <button class="cmd guard" data-cmd="guard"><img class="cur" data-ico="hand" alt=""><span>Guard</span><small>halve next hit</small><kbd>3</kbd></button>
+    <button class="cmd moss" data-cmd="moss"><img class="cur" data-ico="hand" alt=""><span>Moss</span><small>heal front slug</small><kbd>4</kbd></button>
+    <button class="cmd run" data-cmd="run"><img class="cur" data-ico="hand" alt=""><span>Run</span><small>wild only</small><kbd>5</kbd></button>
   </div>
   <div id="floaters"></div>
   <div id="effBanner"></div>
@@ -100,6 +100,7 @@
   </div>
 </div>
 
+<div id="iris"></div>
 <div id="fade"></div>
 <div id="loading"><div class="spinner"></div><div id="loadText">Waking the engine…</div></div>
 
@@ -109,6 +110,7 @@
 <script src="js/art.js"></script>
 <script src="js/art2.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/terrain.js"></script>
 <script src="js/scene.js"></script>
 <script src="js/slugs3d.js"></script>
 <script src="js/ui.js"></script>

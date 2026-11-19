@@ -75,108 +75,47 @@ const Slugs3D = (() => {
   }
 
   // ---------------------------------------------------------
-  //  build one slug.  The model faces +Z, about 1.1 units tall.
+  //  one slug = one pixel-art billboard (same art direction as the characters), squashed and flashed in code
   // ---------------------------------------------------------
+  const slugMats = {};
+  function slugMat(element) {
+    if (slugMats[element]) return slugMats[element];
+    const c = Art.slugSprite(element);
+    const t = World3D.texFromCanvas(c, 'slugspr' + element, { alpha: true, noMip: true, sampling: B.Texture.NEAREST_SAMPLINGMODE });
+    const m = new B.StandardMaterial('slugM' + element, scene);
+    m.diffuseTexture = t; m.useAlphaFromDiffuseTexture = true; m.transparencyMode = B.Material.MATERIAL_ALPHATEST; m.alphaCutOff = 0.5;
+    m.specularColor = new B.Color3(0, 0, 0); m.emissiveColor = new B.Color3(0.28, 0.28, 0.3); m.backFaceCulling = false;
+    slugMats[element] = m;
+    return m;
+  }
+
   function create(element, o = {}) {
-    const P = PAL[element], root = new B.TransformNode('slug3d_' + element, scene);
-    const parts = {};
-    const meshes = [];
-    const mat = toon(P.base, P.shade, P.rim, { stripe: element === 'Energy' ? 1 : 0 });
-    const matBelly = toon(P.belly, P.base, P.rim);
-    const add = (m, parent) => { m.parent = parent || root; m.isPickable = false; m.metadata = { caster: true }; meshes.push(m); return m; };
-
-    const body = add(B.MeshBuilder.CreateSphere('body', { diameter: 1, segments: 20 }, scene));
-    body.scaling.set(1.12, 0.86, 1.3); body.position.y = 0.46; body.material = mat;
-    const belly = add(B.MeshBuilder.CreateSphere('belly', { diameter: 0.8, segments: 14 }, scene));
-    belly.scaling.set(0.95, 0.5, 1.15); belly.position.set(0, 0.26, 0.12); belly.material = matBelly;
-    const head = add(B.MeshBuilder.CreateSphere('head', { diameter: 0.86, segments: 20 }, scene));
-    head.scaling.set(1.0, 0.92, 0.95); head.position.set(0, 0.84, 0.36); head.material = mat;
-    parts.body = body; parts.head = head;
-    // tail
-    const tail = add(B.MeshBuilder.CreateSphere('tail', { diameter: 0.5, segments: 10 }, scene));
-    tail.scaling.set(0.7, 0.55, 1.3); tail.position.set(0, 0.24, -0.7); tail.material = mat;
-    // eyes
-    const eyeWhite = glowStd('#ffffff'); eyeWhite.disableLighting = false; eyeWhite.diffuseColor = new B.Color3(1, 1, 1); eyeWhite.emissiveColor = new B.Color3(0.75, 0.75, 0.8);
-    const pupilM = element === 'Ghoul' ? glowStd(P.eye) : darkStd(P.eye);
-    parts.eyes = [];
-    [-1, 1].forEach((s) => {
-      const eye = add(B.MeshBuilder.CreateSphere('eye', { diameter: 0.3, segments: 12 }, scene), head);
-      eye.position.set(s * 0.2, 0.08, 0.34); eye.scaling.set(1, 1.18, 0.7); eye.material = eyeWhite;
-      const pupil = add(B.MeshBuilder.CreateSphere('pupil', { diameter: 0.18, segments: 10 }, scene), eye);
-      pupil.position.set(s * 0.01, -0.02, 0.38); pupil.scaling.set(1, 1.15, 0.7); pupil.material = pupilM;
-      const hi = add(B.MeshBuilder.CreateSphere('hi', { diameter: 0.07, segments: 6 }, scene), pupil);
-      hi.position.set(-0.2, 0.28, 0.5); hi.material = glowStd('#ffffff');
-      parts.eyes.push(eye);
-      const cheek = add(B.MeshBuilder.CreateSphere('cheek', { diameter: 0.16 }, scene), head);
-      cheek.position.set(s * 0.33, -0.12, 0.3); cheek.scaling.set(1, 0.6, 0.4); cheek.material = glowStd('#ff7aa0', 0.55);
-    });
-    // mouth
-    const mouth = add(B.MeshBuilder.CreateTorus('mouth', { diameter: 0.18, thickness: 0.025, tessellation: 14 }, scene), head);
-    mouth.position.set(0, -0.14, 0.43); mouth.scaling.set(1, 0.5, 1); mouth.rotation.x = Math.PI / 2 - 0.5; mouth.material = darkStd('#2a0e18');
-    // element features
-    const feat = [];
-    if (element === 'Fire') {
-      [[-0.2, 0.28], [0, 0.42], [0.2, 0.28]].forEach(([dx, h], i) => {
-        const f = add(B.MeshBuilder.CreateCylinder('flame', { diameterTop: 0, diameterBottom: 0.24, height: h, tessellation: 7 }, scene), head);
-        f.position.set(dx, 0.5 + h / 2 - 0.02, 0); f.rotation.z = -dx * 0.8; f.material = glowStd(i === 1 ? '#ffe36a' : '#ff8a2a'); feat.push(f);
-      });
-      [-1, 1].forEach((s) => { const e = add(B.MeshBuilder.CreateSphere('ember', { diameter: 0.14 }, scene), body); e.position.set(s * 0.5, 0.2, 0.2); e.material = glowStd('#ffcf4a'); });
-    } else if (element === 'Ice') {
-      const iceM = new B.StandardMaterial('iceM', scene); iceM.diffuseColor = new B.Color3(0.7, 0.9, 1); iceM.emissiveColor = new B.Color3(0.25, 0.5, 0.8); iceM.specularColor = new B.Color3(1, 1, 1); iceM.alpha = 0.92;
-      [[-0.22, 0.3, -0.25], [0, 0.46, 0], [0.22, 0.3, 0.25]].forEach(([dx, h, rz]) => {
-        const f = add(B.MeshBuilder.CreateCylinder('spike', { diameterTop: 0, diameterBottom: 0.22, height: h, tessellation: 5 }, scene), head);
-        f.position.set(dx, 0.52 + h / 2 - 0.03, -0.05); f.rotation.z = rz; f.material = iceM; feat.push(f);
-      });
-      [-0.7, -0.2, 0.3].forEach((z, i) => { const f = add(B.MeshBuilder.CreateCylinder('bspike', { diameterTop: 0, diameterBottom: 0.2, height: 0.3 - i * 0.04, tessellation: 5 }, scene)); f.position.set(0, 0.88 - i * 0.05, z - 0.2); f.rotation.x = -0.3; f.material = iceM; });
-      [-1, 1].forEach((s) => { const fg = add(B.MeshBuilder.CreateCylinder('fang', { diameterTop: 0, diameterBottom: 0.07, height: 0.13, tessellation: 5 }, scene), head); fg.position.set(s * 0.07, -0.19, 0.42); fg.rotation.x = Math.PI; fg.material = glowStd('#ffffff'); });
-    } else if (element === 'Earth') {
-      const rock = new B.StandardMaterial('rockM', scene); rock.diffuseColor = new B.Color3(0.55, 0.52, 0.5); rock.emissiveColor = new B.Color3(0.12, 0.1, 0.09); rock.specularColor = new B.Color3(0.1, 0.1, 0.1);
-      const shell = add(B.MeshBuilder.CreateSphere('shell', { diameter: 1.05, segments: 7, slice: 0.55 }, scene));
-      shell.position.set(0, 0.56, -0.15); shell.scaling.set(1.1, 0.95, 1.25); shell.rotation.x = -0.1; shell.material = rock; shell.convertToFlatShadedMesh();
-      for (let i = 0; i < 5; i++) { const c = add(B.MeshBuilder.CreatePolyhedron('chunk', { type: 2, size: 0.1 + (i % 3) * 0.03 }, scene)); const a = i * 1.3; c.position.set(Math.cos(a) * 0.38, 0.95 + (i % 2) * 0.05, -0.15 + Math.sin(a) * 0.42); c.material = rock; }
-      const moss = glowStd('#7ac45a'); [[-0.2, 1.0, -0.3], [0.25, 0.98, 0.0]].forEach(([x, y, z]) => { const m2 = add(B.MeshBuilder.CreateSphere('moss', { diameter: 0.22 }, scene)); m2.position.set(x, y, z); m2.scaling.y = 0.4; m2.material = moss; });
-    } else if (element === 'Air') {
-      parts.wings = [];
-      [-1, 1].forEach((s) => {
-        const wing = add(B.MeshBuilder.CreateSphere('wing', { diameter: 1, segments: 10 }, scene));
-        wing.scaling.set(0.9, 0.06, 0.38); wing.position.set(s * 0.62, 0.7, -0.05); wing.rotation.z = s * -0.35; wing.material = toon('#ffffff', '#8adfd0', '#ffffff');
-        parts.wings.push({ m: wing, s });
-      });
-      [-1, 1].forEach((s) => { const a = add(B.MeshBuilder.CreateCylinder('ant', { diameterTop: 0.02, diameterBottom: 0.04, height: 0.4, tessellation: 6 }, scene), head); a.position.set(s * 0.14, 0.52, 0.02); a.rotation.z = -s * 0.5; a.material = glowStd('#bff4ff'); });
-    } else if (element === 'Energy') {
-      const ant = add(B.MeshBuilder.CreateCylinder('ant', { diameter: 0.04, height: 0.45, tessellation: 6 }, scene), head); ant.position.set(0, 0.62, 0); ant.material = darkStd('#3a2a10');
-      const bulb = add(B.MeshBuilder.CreateSphere('bulb', { diameter: 0.2 }, scene), head); bulb.position.set(0, 0.9, 0); bulb.material = glowStd('#fff6a0'); feat.push(bulb);
-      const bolt = glowStd('#ffffff');
-      for (let i = 0; i < 4; i++) { const b = add(B.MeshBuilder.CreateBox('bolt', { width: 0.34, height: 0.06, depth: 0.05 }, scene)); b.position.set(0.56 * (i % 2 ? 1 : 1), 0.3 + i * 0.13, 0.05 - i * 0.05); b.rotation.z = i % 2 ? 0.7 : -0.7; b.material = bolt; }
-    } else if (element === 'Ghoul') {
-      [-1, 1].forEach((s) => { const h2 = add(B.MeshBuilder.CreateCylinder('horn', { diameterTop: 0, diameterBottom: 0.2, height: 0.5, tessellation: 6 }, scene), head); h2.position.set(s * 0.26, 0.5, 0); h2.rotation.z = -s * 0.5; h2.material = darkStd('#d8d0f0'); });
-      for (let i = 0; i < 4; i++) { const sp = add(B.MeshBuilder.CreateCylinder('bsp', { diameterTop: 0, diameterBottom: 0.2, height: 0.34, tessellation: 5 }, scene)); sp.position.set(0, 0.88 - i * 0.04, -0.15 - i * 0.28); sp.rotation.x = -0.35; sp.material = darkStd('#d8d0f0'); }
-      [-1, 1].forEach((s) => { const t = add(B.MeshBuilder.CreateCylinder('tusk', { diameterTop: 0, diameterBottom: 0.07, height: 0.2, tessellation: 5 }, scene), head); t.position.set(s * 0.14, -0.16, 0.42); t.rotation.x = Math.PI; t.material = darkStd('#ffffff'); });
-    }
-    // outline (inked look)
-    meshes.forEach((m) => { if (m.name === 'body' || m.name === 'head' || m.name === 'belly' || m.name === 'tail' || m.name === 'shell' || m.name === 'wing') { m.renderOutline = true; m.outlineWidth = 0.028; m.outlineColor = new B.Color3(0.08, 0.04, 0.14); } });
-
-    const state = { t0: Math.random() * 6, squash: 0, flash: 0, hurt: 0 };
+    const P = PAL[element], root = new B.TransformNode('slug_' + element, scene);
+    const plane = B.MeshBuilder.CreatePlane('slugPlane', { width: 1.5, height: 1.5 }, scene);
+    plane.parent = root; plane.position.y = 0.72; plane.billboardMode = B.Mesh.BILLBOARDMODE_Y; plane.isPickable = false; plane.metadata = { caster: true };
+    const base = slugMat(element);                         // (Material.clone would blank the dynamic texture, so build a fresh one)
+    const mat = new B.StandardMaterial('slugInst', scene);
+    mat.diffuseTexture = base.diffuseTexture; mat.useAlphaFromDiffuseTexture = true; mat.transparencyMode = B.Material.MATERIAL_ALPHATEST; mat.alphaCutOff = 0.5;
+    mat.specularColor = new B.Color3(0, 0, 0); mat.emissiveColor = new B.Color3(0.28, 0.28, 0.3); mat.backFaceCulling = false;
+    plane.material = mat;
+    const state = { t0: Math.random() * 6, squash: 0, flash: 0 };
+    let glow = 0;
     const api = {
-      root, element, parts, meshes, mats: [mat, matBelly], state, glowColor: P.glow,
+      root, element, parts: {}, meshes: [plane], state, glowColor: P.glow,
       idle(t) {
-        const s = Math.sin(t * 2.4 + state.t0);
-        const sq = state.squash;
-        root.scaling.set(1 - s * 0.018 + sq * 0.3, 1 + s * 0.035 - sq * 0.34, 1 - s * 0.018 + sq * 0.3);
-        head.position.y = 0.84 + s * 0.015; head.rotation.z = Math.sin(t * 1.3 + state.t0) * 0.04;
-        if (parts.wings) parts.wings.forEach((w) => { w.m.rotation.z = w.s * (-0.35 - Math.sin(t * 9 + state.t0) * 0.35); });
-        feat.forEach((f, i) => { if (element === 'Fire') f.scaling.y = 1 + Math.sin(t * 11 + i * 2) * 0.18; if (element === 'Energy') f.scaling.setAll(1 + Math.sin(t * 14) * 0.25); });
-        const blink = (Math.sin(t * 0.8 + state.t0 * 3) > 0.985) ? 0.12 : 1;
-        parts.eyes.forEach((e) => { e.scaling.y = 1.18 * blink; });
+        const s = Math.sin(t * 3 + state.t0), sq = state.squash;
+        plane.scaling.set(1 - s * 0.03 + sq * 0.3, 1 + s * 0.05 - sq * 0.34, 1);
+        plane.position.y = 0.72 * plane.scaling.y;
         if (state.flash > 0) state.flash = Math.max(0, state.flash - 0.06);
-        mat.setFloat('flashAmt', state.flash); matBelly.setFloat('flashAmt', state.flash);
+        const e = 0.28 + state.flash + glow * 0.5;
+        mat.emissiveColor.set(e, e, e + 0.02);
         if (state.squash > 0) state.squash = Math.max(0, state.squash - 0.045);
       },
       flashWhite(v = 0.8) { state.flash = v; },
       squashHit(v = 0.5) { state.squash = v; },
-      setGlow(v) { mat.setFloat('glowAmt', v); matBelly.setFloat('glowAmt', v * 0.7); },
+      setGlow(v) { glow = v; },
       setVisible(v) { root.setEnabled(v); },
-      dispose() { meshes.forEach((m) => m.dispose()); root.dispose(); const i1 = toonMats.indexOf(mat); if (i1 >= 0) toonMats.splice(i1, 1); const i2 = toonMats.indexOf(matBelly); if (i2 >= 0) toonMats.splice(i2, 1); },
+      dispose() { plane.dispose(); mat.dispose(); root.dispose(); },
     };
     return api;
   }

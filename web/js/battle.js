@@ -16,7 +16,9 @@ const Battle = (() => {
   let camPos = CAM.pos.clone(), camLook = CAM.look.clone(), camT = 0, camDesired = null, battleLight = null, fxLight = null, redPulse = 0;
   let cur = null;            // latest battle state from the engine
   let busy = false, typing = null, prevSun = null;
-  let camSwing = 0, fogBefore = 0.03;
+  let camSwing = 0, fogBefore = 0.03, fovBefore = 0.46;
+  let sel = 0; const ORDER = ['fire', 'swap', 'guard', 'moss', 'run'];
+  let weakKnown = {}, resKnown = {};
 
   // =========================================================
   //  arena
@@ -153,6 +155,8 @@ const Battle = (() => {
     cam.position.set(camPos.x + camSwing * 0.5, camPos.y + Math.sin(camT * 0.5) * 0.12, camPos.z);
     cam.setTarget(camLook);
     if (arena._disc) arena._disc.rotation.y += dt * 0.12;
+    const tgt = enemyModel ? ENEMY_POS.add(V3(0, 2.7, 0)) : enemyActor ? ENEMY_POS.add(V3(0, enemyActor.h + 0.5, 0)) : null;
+    if (tgt) { const pp = projectWorld(tgt), el = $('enemyPlate'); el.style.left = Math.max(125, Math.min(innerWidth - 125, pp.x)) + 'px'; el.style.top = Math.max(70, pp.y) + 'px'; }
     if (frontModel) frontModel.idle(t);
     if (enemyModel) enemyModel.idle(t);
     if (fxLight && fxLight.intensity > 0) fxLight.intensity = Math.max(0, fxLight.intensity - dt * 7);
@@ -180,10 +184,12 @@ const Battle = (() => {
     cur = b;
     const e = b.enemy;
     $('enName').textContent = e.name; $('enLv').textContent = 'Lv' + e.level;
-    $('enElem').textContent = Art.elementEmoji(e.element) + ' ' + e.element; $('enElem').style.color = EL_COLOR[e.element];
+    $('enElem').innerHTML = Art.elementEmoji(e.element) + ' ' + e.element; $('enElem').style.color = EL_COLOR[e.element];
     if (!opts.keepEnemyHp) setBar($('enHp'), e.hp, e.maxHp);
     const st = [];
-    if (e.burn > 0) st.push('🔥 burning'); if (e.slow > 0) st.push('❄ slowed'); if (e.stunned) st.push('⚡ stunned');
+    if (e.burn > 0) st.push(Art.iconHtml('Fire') + ' burning'); if (e.slow > 0) st.push(Art.iconHtml('Ice') + ' slowed'); if (e.stunned) st.push(Art.iconHtml('Energy') + ' stunned');
+    const wk = (weakKnown[e.name] || []).map((x) => Art.iconHtml(x)).join(' '), rs = (resKnown[e.name] || []).map((x) => Art.iconHtml(x)).join(' ');
+    if (wk) st.push('weak ' + wk); if (rs) st.push('resists ' + rs);
     $('enStatus').innerHTML = st.map((s) => `<span>${s}</span>`).join('');
     const bi = $('bossInfo');
     if (e.kind === 'boss') {
@@ -192,7 +198,7 @@ const Battle = (() => {
     } else bi.classList.add('hidden');
     const f = b.front;
     if (f) {
-      $('plName').textContent = f.name; $('plLv').textContent = 'Lv' + f.level; $('plElem').textContent = Art.elementEmoji(f.element) + ' ' + f.element; $('plElem').style.color = EL_COLOR[f.element];
+      $('plName').textContent = f.name; $('plLv').textContent = 'Lv' + f.level; $('plElem').innerHTML = Art.elementEmoji(f.element) + ' ' + f.element; $('plElem').style.color = EL_COLOR[f.element];
       setBar($('plHp'), f.hp, f.maxHp); $('plHpTxt').textContent = f.hp + '/' + f.maxHp; $('plXp').style.width = (f.xp / f.xpNeed * 100) + '%';
     }
     $('slHp').textContent = b.slingerHp + '/' + b.slingerMax; $('slAmmo').textContent = b.ammo; $('slMoss').textContent = b.moss;
@@ -206,6 +212,7 @@ const Battle = (() => {
       q.appendChild(d);
     }
     const my = b.turn === 'player' && !b.over && !busy;
+    document.querySelectorAll('.cmd').forEach((c) => c.classList.toggle('sel', c.dataset.cmd === ORDER[sel]));
     document.querySelectorAll('.cmd').forEach((c) => {
       c.disabled = !my;
       if (c.dataset.cmd === 'run') c.disabled = !my || e.kind !== 'wild';
@@ -295,7 +302,9 @@ const Battle = (() => {
       Slugs3D.ring(target, Slugs3D.PAL[el].glow, super_ ? 4.5 : 3, 0.5);
       if (el === 'Energy') Slugs3D.bolt(target.add(V3(0, 4, 0)), target, '#fff06a');
       flashLight(Slugs3D.PAL[el].glow, super_ ? 5 : 3);
-      World3D.addShake(super_ ? 0.42 : 0.2);
+      World3D.addShake(super_ ? 0.42 : 0.2); World3D.hitStop(super_ ? 95 : 55);
+      if (super_) { (weakKnown[b.enemy.name] = weakKnown[b.enemy.name] || []).includes(el) || weakKnown[b.enemy.name].push(el); }
+      if (res) { (resKnown[b.enemy.name] = resKnown[b.enemy.name] || []).includes(el) || resKnown[b.enemy.name].push(el); }
       if (a.absorbed) { Sound.sfx.resisted(); if (minionActors.length) { const m = minionActors.pop(); popMinion(m); } floater('ABSORBED', 'resisted', target); }
       else {
         const dmgThis = Math.round(a.damage / nHits);
@@ -340,7 +349,7 @@ const Battle = (() => {
     World3D.addShake(k0 === 'mega' ? 0.9 : m.label === 'super' ? 0.45 : 0.25);
     if (k0 === 'mega') { World3D.flash(0.7); floater('-' + m.dmgSlinger, 'take', PLAYER_POS.add(V3(0, 2.2, 0))); }
     if (m.dmgSlug > 0 && frontModel) { frontModel.flashWhite(0.8); frontModel.squashHit(0.5); floater('-' + m.dmgSlug, 'take', target.add(V3(0, 0.7, 0))); }
-    if (m.shieldAbsorbed > 0) floater('🛡 -' + m.shieldAbsorbed, 'heal', target.add(V3(0.5, 1.3, 0)));
+    if (m.shieldAbsorbed > 0) floater('shield -' + m.shieldAbsorbed, 'heal', target.add(V3(0.5, 1.3, 0)));
     if (m.label === 'super' && m.dmgSlug > 0) effBanner('Super effective!', '#ff7a8a');
     if (m.label === 'resisted' && m.dmgSlug > 0) effBanner('Not very effective...', '#9db3c9');
     await wait(180);
@@ -421,9 +430,10 @@ const Battle = (() => {
     const zid = World3D.zone.id;
     Sound.sfx.encounter();
     World3D.flash(0.8);
-    const fade = $('fade'); fade.classList.add('on'); await wait(450);
+    const fade = $('iris'); fade.classList.add('on'); await wait(600);
     // build the arena far away and switch the camera over
     World3D.setCamMode('free');
+    fovBefore = World3D.camera.fov; World3D.camera.fov = 0.66;
     fogBefore = World3D.scene.fogDensity; World3D.scene.fogDensity = fogBefore * 0.45;
     prevSun = { auto: World3D.sun.autoUpdateExtends, z: World3D.sun.autoCalcShadowZBounds };
     buildArena(zid);
@@ -443,7 +453,7 @@ const Battle = (() => {
     setFront(b.front, false);
     if (frontModel) { frontModel.root.scaling.setAll(0.01); }
     await wait(120);
-    fade.classList.remove('on'); await wait(500);
+    fade.classList.remove('on'); await wait(600);
     // intro
     camShot('intro');
     if (b.enemy.kind === 'boss') { redPulse = 0; banner('GORVAX', '#ff5a6a'); World3D.addShake(0.3); Sound.sfx.mega(); await wait(900); }
@@ -552,9 +562,9 @@ const Battle = (() => {
       await say('All your slugs are down... You black out. The blaster is restored from its snapshot.', 1200);
     }
     await flushCards();
-    $('fade').classList.add('on'); await wait(500);
+    $('iris').classList.add('on'); await wait(600);
     teardown();
-    $('fade').classList.remove('on');
+    $('iris').classList.remove('on');
     busy = false;
     if (resolveBattle) { const rs = resolveBattle; resolveBattle = null; rs(r); }
   }
@@ -571,7 +581,7 @@ const Battle = (() => {
     const sun = World3D.sun; if (prevSun) { sun.autoUpdateExtends = prevSun.auto; sun.autoCalcShadowZBounds = prevSun.z; }
     $('battleUI').classList.add('hidden'); $('floaters').innerHTML = '';
     World3D.setCamMode('follow');
-    World3D.scene.fogDensity = fogBefore;
+    World3D.scene.fogDensity = fogBefore; World3D.camera.fov = fovBefore;
     clearInterval(typing);
   }
 
@@ -579,5 +589,11 @@ const Battle = (() => {
   document.querySelectorAll('.cmd').forEach((c) => c.addEventListener('click', () => command(c.dataset.cmd)));
   const active = () => !!arena;
 
-  return { run, command, active, isBusy: () => busy };
+  function moveCursor(d) {
+    const en = (i) => { const c = document.querySelector('.cmd[data-cmd="' + ORDER[i] + '"]'); return c && !c.disabled; };
+    for (let k = 1; k <= 5; k++) { const n = (sel + d * k + 50) % 5; if (en(n)) { sel = n; break; } }
+    Sound.sfx.blip(); updateHud(cur);
+  }
+  function confirm() { command(ORDER[sel]); }
+  return { run, command, moveCursor, confirm, active, isBusy: () => busy };
 })();

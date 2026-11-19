@@ -3,6 +3,30 @@ const Art = (() => {
   const OUT = '#160d26';
   const cache = {};
 
+  // turn a smooth drawing into pixel art: shrink, hard alpha, posterise, 1px dark outline
+  function pixelize(src, W, H, opts) {
+    opts = opts || {};
+    const [c, ctx] = mk(W, H);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(src, 0, 0, W, H);
+    const id = ctx.getImageData(0, 0, W, H), d = id.data, lv = opts.levels || 7;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 120) { d[i + 3] = 0; continue; }
+      d[i + 3] = 255;
+      for (let k = 0; k < 3; k++) d[i + k] = Math.round(d[i + k] / 255 * (lv - 1)) / (lv - 1) * 255;
+    }
+    if (opts.outline !== false) {
+      const a = new Uint8Array(W * H); for (let i = 0; i < W * H; i++) a[i] = d[i * 4 + 3] ? 1 : 0;
+      const oc = opts.outlineColor || [22, 13, 38];
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = y * W + x; if (a[i]) continue;
+        if ((x > 0 && a[i - 1]) || (x < W - 1 && a[i + 1]) || (y > 0 && a[i - W]) || (y < H - 1 && a[i + W])) { d[i * 4] = oc[0]; d[i * 4 + 1] = oc[1]; d[i * 4 + 2] = oc[2]; d[i * 4 + 3] = 255; }
+      }
+    }
+    ctx.putImageData(id, 0, 0);
+    return c;
+  }
+
   // ---------- tiny drawing helpers ----------
   function mk(w, h) {
     const c = document.createElement('canvas');
@@ -57,7 +81,8 @@ const Art = (() => {
   // =========================================================
   //  CHARACTERS  (canvas 256 x 384, feet at y = 356)
   // =========================================================
-  function human(ctx, o, view) {
+  function human(ctx, o, view, walk) {
+    walk = walk || 0;
     const cx = 128;
     const side = view === 'side', back = view === 'back';
     // behind-the-body things
@@ -76,9 +101,11 @@ const Art = (() => {
     // legs
     const legW = side ? 34 : 26;
     const legXs = side ? [cx - 22, cx - 2] : [cx - 32, cx + 6];
-    legXs.forEach((lx, i) => {
-      P(ctx, rr(lx, 298, legW, 56, 12), lg(ctx, 0, 298, 0, 354, o.pants, o.pantsDark), 6);
-      P(ctx, rr(lx - 3, 330, legW + 8 + (side ? 6 : 0), 26, 11), lg(ctx, 0, 330, 0, 356, o.boots, '#20142e'), 6);
+    const lift = walk === 1 ? [16, 0] : walk === 2 ? [0, 16] : [0, 0];
+    legXs.forEach((lx0, i) => {
+      const ly = lift[i], lx = side ? lx0 + (walk === 1 ? (i ? 12 : -12) : walk === 2 ? (i ? -12 : 12) : 0) : lx0;
+      P(ctx, rr(lx, 298 - ly, legW, 56, 12), lg(ctx, 0, 298, 0, 354, o.pants, o.pantsDark), 6);
+      P(ctx, rr(lx - 3, 330 - ly, legW + 8 + (side ? 6 : 0), 26, 11), lg(ctx, 0, 330, 0, 356, o.boots, '#20142e'), 6);
     });
     // body
     const bw = side ? 64 : 86;
@@ -92,7 +119,7 @@ const Art = (() => {
     // arms
     if (!side) {
       [[cx - 52, -1], [cx + 52, 1]].forEach(([ax, s]) => {
-        ctx.save(); ctx.translate(ax, 234); ctx.rotate(0.14 * s);
+        ctx.save(); ctx.translate(ax, 234 - (walk ? 6 : 0)); ctx.rotate(0.14 * s + (walk === 1 ? 0.4 * s : walk === 2 ? -0.4 * s : 0));
         P(ctx, ell(0, 0, 16, 42), lg(ctx, -16, 0, 16, 0, o.top, o.topDark), 6);
         P(ctx, ell(0, 40, 12, 12), o.skin, 5);
         ctx.restore();
@@ -248,18 +275,20 @@ const Art = (() => {
     P(ctx, poly([[cx + 30, 124], [cx + 44, 90], [cx + 14, 114]]), '#d8d0f0', 4);
   }
 
-  function sprite(name, view) {
-    const key = name + ':' + view;
+  // Every character is drawn large, then reduced to real pixel art (48x72, hard alpha, small palette, 1px outline)
+  function sprite(name, view, frame) {
+    frame = frame || 0;
+    const key = name + ':' + view + ':' + frame;
     if (cache[key]) return cache[key];
-    let c, ctx;
-    if (name === 'gorvax') { [c, ctx] = mk(384, 448); gorvax(ctx, view); }
+    let c, ctx, W = 48, H = 72;
+    if (name === 'gorvax') { [c, ctx] = mk(384, 448); gorvax(ctx, view); W = 80; H = 93; }
     else if (name === 'minion') { [c, ctx] = mk(256, 384); minion(ctx); }
     else if (name.startsWith('ghoul')) {
       const tint = { ice: '#7ae0ff', fire: '#ff9a3c', ghoul: '#ff3df2', air: '#bff4ff', earth: '#9dff6a', energy: '#fff06a' }[name.split('_')[1] || 'ghoul'] || '#ff3df2';
       [c, ctx] = mk(256, 384); ghoul(ctx, tint, view);
-    } else { [c, ctx] = mk(256, 384); human(ctx, HUMANS[name], view); }
-    cache[key] = c;
-    return c;
+    } else { [c, ctx] = mk(256, 384); human(ctx, HUMANS[name], view, frame); }
+    cache[key] = pixelize(c, W, H, { levels: 8 });
+    return cache[key];
   }
 
   // =========================================================
@@ -311,12 +340,18 @@ const Art = (() => {
   }
 
   const portraitCache = {};
-  function portrait(el, size = 128) {
-    const key = el + size;
+  function slugSprite(el) {
+    const key = 'slugspr' + el;
+    if (cache[key]) return cache[key];
+    const [c, ctx] = mk(256, 256);
+    slugPortrait(ctx, el, 256);
+    cache[key] = pixelize(c, 40, 40, { levels: 8 });
+    return cache[key];
+  }
+  function portrait(el, size) {
+    const key = el;
     if (portraitCache[key]) return portraitCache[key];
-    const [c, ctx] = mk(size, size);
-    slugPortrait(ctx, el, size);
-    portraitCache[key] = c.toDataURL();
+    portraitCache[key] = slugSprite(el).toDataURL();
     return portraitCache[key];
   }
   function portraitFor(name, size) {
@@ -481,8 +516,60 @@ const Art = (() => {
   }
 
   // title-screen / UI backdrop
-  function elementEmoji(el) { return { Fire: '🔥', Ice: '❄️', Air: '🌪️', Earth: '🪨', Energy: '⚡', Ghoul: '👻' }[el] || '•'; }
+
+  // small pixel icons (drawn big, reduced to 16x16 pixel art) that replace every emoji in the UI
+  function drawIcon(ctx, n) {
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    const F = (path, fill, lw) => P(ctx, path, fill, lw === undefined ? 0 : lw);
+    if (n === 'Fire' || n === 'fire') {
+      F((c) => { c.moveTo(32, 4); c.bezierCurveTo(44, 18, 56, 26, 52, 42); c.bezierCurveTo(50, 56, 38, 60, 32, 60); c.bezierCurveTo(24, 60, 12, 54, 12, 40); c.bezierCurveTo(12, 30, 20, 24, 22, 16); c.bezierCurveTo(28, 22, 28, 12, 32, 4); }, '#ff7a2a');
+      F((c) => { c.moveTo(32, 28); c.bezierCurveTo(40, 38, 44, 44, 38, 54); c.bezierCurveTo(30, 58, 22, 50, 26, 42); c.bezierCurveTo(28, 38, 30, 34, 32, 28); }, '#ffe36a');
+    } else if (n === 'Ice' || n === 'ice') {
+      ctx.strokeStyle = '#bfeaff'; ctx.lineWidth = 7;
+      for (let i = 0; i < 3; i++) { ctx.save(); ctx.translate(32, 32); ctx.rotate(i * Math.PI / 3); ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(0, 26); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-8, -18); ctx.lineTo(0, -10); ctx.lineTo(8, -18); ctx.stroke(); ctx.restore(); }
+    } else if (n === 'Air' || n === 'air') {
+      ctx.strokeStyle = '#9ef0d8'; ctx.lineWidth = 7; ctx.beginPath();
+      for (let a = 0; a < 11; a += 0.2) { const r = 3 + a * 2.6; ctx.lineTo(32 + Math.cos(a) * r, 32 + Math.sin(a) * r); } ctx.stroke();
+    } else if (n === 'Earth' || n === 'earth') {
+      F((c) => { c.moveTo(8, 48); c.lineTo(16, 24); c.lineTo(30, 12); c.lineTo(46, 18); c.lineTo(58, 36); c.lineTo(52, 52); c.lineTo(24, 56); c.closePath(); }, '#c49a5a');
+      F((c) => { c.moveTo(24, 30); c.lineTo(34, 22); c.lineTo(44, 30); c.lineTo(34, 38); c.closePath(); }, '#e8c88a');
+    } else if (n === 'Energy' || n === 'energy' || n === 'bolt') {
+      F((c) => { c.moveTo(38, 2); c.lineTo(14, 36); c.lineTo(28, 36); c.lineTo(22, 62); c.lineTo(50, 24); c.lineTo(34, 24); c.closePath(); }, '#ffe14a');
+    } else if (n === 'Ghoul' || n === 'ghoul') {
+      F((c) => { c.moveTo(12, 56); c.lineTo(12, 28); c.bezierCurveTo(12, 8, 52, 8, 52, 28); c.lineTo(52, 56); c.lineTo(44, 48); c.lineTo(36, 56); c.lineTo(28, 48); c.lineTo(20, 56); c.closePath(); }, '#d46aff');
+      F(ell(25, 28, 5, 7), '#1a0a2a'); F(ell(40, 28, 5, 7), '#1a0a2a');
+    } else if (n === 'ammo') {
+      F((c) => { c.rect(8, 22, 40, 14); c.rect(8, 22, 10, 30); c.rect(46, 18, 12, 22); }, '#c0c8d8');
+      F((c) => { c.rect(10, 24, 36, 4); }, '#fff');
+    } else if (n === 'moss') {
+      F((c) => { c.moveTo(10, 54); c.bezierCurveTo(10, 20, 30, 8, 54, 8); c.bezierCurveTo(56, 34, 40, 54, 10, 54); }, '#6fe05a');
+      ctx.strokeStyle = '#1d6a2a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(12, 52); ctx.lineTo(42, 22); ctx.stroke();
+    } else if (n === 'key') {
+      F(ell(20, 32, 14, 14), '#ffd23f'); F(ell(20, 32, 6, 6), '#000');
+      F((c) => { c.rect(30, 28, 30, 8); c.rect(46, 34, 6, 14); c.rect(56, 34, 6, 10); }, '#ffd23f');
+    } else if (n === 'heart') {
+      F((c) => { c.moveTo(32, 56); c.bezierCurveTo(-4, 30, 10, 6, 32, 22); c.bezierCurveTo(54, 6, 68, 30, 32, 56); }, '#ff5a7a');
+    } else if (n === 'shield') {
+      F((c) => { c.moveTo(32, 6); c.lineTo(56, 14); c.lineTo(52, 40); c.lineTo(32, 58); c.lineTo(12, 40); c.lineTo(8, 14); c.closePath(); }, '#ffd98a');
+    } else if (n === 'check') {
+      ctx.strokeStyle = '#6fe05a'; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(10, 34); ctx.lineTo(26, 50); ctx.lineTo(54, 14); ctx.stroke();
+    } else if (n === 'hand') {
+      F((c) => { c.moveTo(6, 14); c.lineTo(58, 32); c.lineTo(6, 50); c.lineTo(18, 32); c.closePath(); }, '#ffffff');
+    } else if (n === 'down') {
+      F((c) => { c.moveTo(8, 18); c.lineTo(56, 18); c.lineTo(32, 52); c.closePath(); }, '#ffffff');
+    } else F(ell(32, 32, 18, 18), '#fff');
+  }
+  const iconCache = {};
+  function icon(name) {
+    if (iconCache[name]) return iconCache[name];
+    const [c, ctx] = mk(64, 64);
+    drawIcon(ctx, name);
+    iconCache[name] = pixelize(c, 16, 16, { levels: 6 }).toDataURL();
+    return iconCache[name];
+  }
+  const iconHtml = (name) => '<img class="ico" alt="" src="' + icon(name) + '">';
+  function elementEmoji(el) { return iconHtml(el); }
   const ELEMENT_COLOR = { Fire: '#ff7a2a', Ice: '#6fd0ff', Air: '#9ef0d8', Earth: '#c49a5a', Energy: '#ffe14a', Ghoul: '#d46aff' };
 
-  return { sprite, dataUrl, portrait, portraitFor, floorTexture, rockTexture, lavaTexture, waterTexture, iceTexture, glowDot, blobShadow, sparkTexture, makeNoise, fbm, rng, elementEmoji, ELEMENT_COLOR, ZONE_COLORS, PAL };
+  return { icon, iconHtml, pixelize, slugSprite, sprite, dataUrl, portrait, portraitFor, floorTexture, rockTexture, lavaTexture, waterTexture, iceTexture, glowDot, blobShadow, sparkTexture, makeNoise, fbm, rng, elementEmoji, ELEMENT_COLOR, ZONE_COLORS, PAL };
 })();
